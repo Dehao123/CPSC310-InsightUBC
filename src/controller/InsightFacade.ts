@@ -8,25 +8,26 @@ import {
 		ResultTooLargeError
 		} from "./IInsightFacade";
 
-import JSZip from "jszip";
+
 import * as fs from "fs-extra";
 import * as path from "path";
+import JSZip from "jszip";
 
 
 
-
-// ---- C1 内部数据模型（你也可以放到单独文件）----
+// ---- C1 的 JSON 	文件内部数据模型 ----
+//	这就是 行模型。每条 JSON 记录会被映射成一个 SectionRow。
 interface SectionRow {
 	uuid: string;
-	id: string;        // id（如 "310"）
-	dept: string;      // department（如 "cpsc"）
-	avg: number;
-	instructor: string;
-	title: string;
-	pass: number;
-	fail: number;
-	audit: number;
-	year: number;      // "overall" 设为 1900
+	id: string;        		// section的标识符
+	dept: string;      		// 提供该 section 的部门
+	avg: number;			//	section 中学生获得的平均成绩。
+	instructor: string;		// 该 section 的教授姓名
+	title: string;			// 课程名称
+	pass: number;			//	section 中通过的学生人数。
+	fail: number;			//	section 中失败的学生人数。
+	audit: number;			//	section 中旁听的学生人数。
+	year: number;      		// section 运行的年份。当 Section = overall 时设置为 1900
 }
 
 
