@@ -18,8 +18,8 @@ import * as path from "path";
 // ---- C1 内部数据模型（你也可以放到单独文件）----
 interface SectionRow {
 	uuid: string;
-	id: string;        // 课程号（如 "310"）
-	dept: string;      // 学院（如 "cpsc"）
+	id: string;        // id（如 "310"）
+	dept: string;      // department（如 "cpsc"）
 	avg: number;
 	instructor: string;
 	title: string;
