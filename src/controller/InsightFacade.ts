@@ -404,7 +404,7 @@ export default class InsightFacade implements IInsightFacade {
 		return x !== null && typeof x === "object" && !Array.isArray(x);
 	}
 
-	// Sections 可用字段与类型（key 的后半段）
+	// Sections 可用字段与类型
 	private readonly sectionsFieldTypes: Record<string, "number" | "string"> = {
 		dept: "string",
 		id: "string",
