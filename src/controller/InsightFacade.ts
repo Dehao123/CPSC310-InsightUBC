@@ -330,7 +330,7 @@ export default class InsightFacade implements IInsightFacade {
 						try {
 							obj = JSON.parse(text);
 						} catch {
-							return; // 不是 JSON：忽略
+							return; // 不是 JSON：
 						}
 						if (!obj || !Array.isArray(obj.result)) {
 							return;
