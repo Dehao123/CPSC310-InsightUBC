@@ -101,9 +101,9 @@ export default class InsightFacade implements IInsightFacade {
 			}
 		} catch {}
 	}
-	private isFiniteInteger(x: any): x is number {
-		return this.isFiniteNumber(x) && Number.isInteger(x);
-	}
+	// private isFiniteInteger(x: any): x is number {
+	// 	return this.isFiniteNumber(x) && Number.isInteger(x);
+	// }
 
 	// ====== C1: addDataset（Sections）======
 	public async addDataset(id: string, content: string, kind: InsightDatasetKind): Promise<string[]> {
@@ -174,85 +174,140 @@ export default class InsightFacade implements IInsightFacade {
 
 	public async performQuery(query: unknown): Promise<InsightResult[]> {
 		await this.ensureInitialized();
+
 		// 1) 基础结构校验
 		if (!this.isObject(query)) throw new InsightError("Query must be an object");
 		const q = query as any;
 		if (!("WHERE" in q) || !("OPTIONS" in q)) throw new InsightError("Query must have WHERE and OPTIONS");
+		if (!this.isObject(q.WHERE)) throw new InsightError("WHERE must be an object");
+		if ("TRANSFORMATIONS" in q) throw new InsightError("Transformations not supported in C1");
 
-		// 2) 解析/收集本次查询涉及到的所有字段（用于提取 datasetId）
 		const where = q.WHERE;
 		const options = q.OPTIONS;
 
-		// COLUMNS 必须是非空数组
+		// 2) OPTIONS 静态校验（必须在任何数据遍历前完成）
 		if (!options || !Array.isArray(options.COLUMNS) || options.COLUMNS.length === 0) {
 			throw new InsightError("OPTIONS.COLUMNS must be a non-empty array");
 		}
-
-		// 收集所有用到的 key（WHERE 中 & COLUMNS 中 & ORDER 中）
-		const whereKeys = this.collectWhereKeys(where);
 		const columnKeys: string[] = options.COLUMNS.slice();
-		const orderKeys: string[] = this.extractOrderKeys(options.ORDER);
 
+		// C1: 只允许字符串 ORDER；且必须出现在 COLUMNS
+		let orderKeys: string[] = [];
+		if (options.ORDER !== undefined) {
+			const ord = options.ORDER;
+			if (typeof ord !== "string") {
+				throw new InsightError("ORDER must be a string in C1");
+			}
+			if (!columnKeys.includes(ord)) {
+				throw new InsightError("ORDER must use a key from COLUMNS");
+			}
+			orderKeys = [ord];
+		}
+
+		// 3) WHERE 结构先验校验（AND/OR 非空；NOT 恰包一条；IS 通配只能首/尾）
+		if (this.isObject(where) && Object.keys(where).length > 0) {
+			this.assertValidFilter(where);
+		}
+
+		// 4) 收集 key 并解析 datasetId（只允许一个数据集、且必须存在）
+		const whereKeys = this.collectWhereKeys(where);
 		const allKeys = [...whereKeys, ...columnKeys, ...orderKeys];
-
-		// 3) 解析 datasetId，并确保只引用了一个数据集、且该数据集存在
 		const datasetId = this.validateAndGetDatasetId(allKeys);
 		const dataset = this.data.get(datasetId);
 		if (!dataset) throw new InsightError(`Dataset '${datasetId}' not added`);
 
-		// 4) 字段名与类型校验（根据 Sections 规格）
+		// 5) 字段与类型校验（Sections 规格）
 		allKeys.forEach((k) => this.assertValidSectionsKey(k));
 
-		// 5) 执行 WHERE 过滤
+		// 6) 执行 WHERE 过滤
 		const filtered = dataset.filter((row) => this.evalWhere(where, row, datasetId));
 
-		// 6) 结果过大检查
+		// 7) 结果过大检查（放在所有结构校验之后）
 		if (filtered.length > 5000) {
 			throw new ResultTooLargeError("Result too large");
 		}
 
-		// 7) 选择列（投影）
+		// 8) 投影
 		const projected: InsightResult[] = filtered.map((row) => {
 			const out: InsightResult = {};
 			for (const col of columnKeys) {
-				const [_, field] = this.splitKey(col);
+				const [, field] = this.splitKey(col);
 				out[col] = this.getFieldValue(row, field);
 			}
 			return out;
 		});
 
-		// 8) 排序（可为字符串或 { dir, keys }）
+		// 9) 排序（仅字符串 ORDER）
 		if (options.ORDER !== undefined) {
-			const ord = options.ORDER;
-			if (typeof ord === "string") {
-				if (!columnKeys.includes(ord)) throw new InsightError("ORDER must use a key from COLUMNS");
-				const [_, field] = this.splitKey(ord);
-				projected.sort((a, b) => this.cmp(a[ord], b[ord]));
-			} else if (this.isObject(ord)) {
-				const dir = ord.dir;
-				const keys: string[] = ord.keys;
-				if ((dir !== "UP" && dir !== "DOWN") || !Array.isArray(keys) || keys.length === 0) {
-					throw new InsightError("Invalid ORDER object");
-				}
-				// 所有排序键必须属于 COLUMNS
-				for (const k of keys) {
-					if (!columnKeys.includes(k)) throw new InsightError("ORDER keys must be in COLUMNS");
-				}
-				projected.sort((a, b) => {
-					for (const k of keys) {
-						const va = a[k];
-						const vb = b[k];
-						const c = this.cmp(va, vb);
-						if (c !== 0) return dir === "UP" ? c : -c;
-					}
-					return 0;
-				});
-			} else {
-				throw new InsightError("Invalid ORDER");
-			}
+			const ord = options.ORDER as string;
+			projected.sort((a, b) => this.cmp(a[ord], b[ord]));
 		}
 
 		return projected;
+	}
+
+	/** ====== 辅助校验：WHERE 结构与 IS 模式 ====== */
+	private assertValidFilter(node: any): void {
+		if (!this.isObject(node) || Object.keys(node).length !== 1) {
+			throw new InsightError("Invalid filter");
+		}
+		const op = Object.keys(node)[0];
+		const val = node[op];
+
+		if (op === "AND" || op === "OR") {
+			if (!Array.isArray(val) || val.length === 0) {
+				throw new InsightError(`${op} needs non-empty array`);
+			}
+			for (const sub of val) {
+				this.assertValidFilter(sub);
+			}
+			return;
+		}
+
+		if (op === "NOT") {
+			if (!this.isObject(val) || Object.keys(val).length !== 1) {
+				throw new InsightError("NOT must wrap exactly one filter");
+			}
+			this.assertValidFilter(val);
+			return;
+		}
+
+		if (op === "LT" || op === "GT" || op === "EQ") {
+			if (!this.isObject(val) || Object.keys(val).length !== 1) {
+				throw new InsightError(`${op} must have exactly one key`);
+			}
+			return;
+		}
+
+		if (op === "IS") {
+			if (!this.isObject(val) || Object.keys(val).length !== 1) {
+				throw new InsightError("IS must have exactly one key");
+			}
+			const pattern = val[Object.keys(val)[0]];
+			this.assertValidIsPattern(pattern);
+			return;
+		}
+
+		throw new InsightError(`Unknown WHERE operator '${op}'`);
+	}
+
+	private assertValidIsPattern(pat: any): void {
+		if (typeof pat !== "string") throw new InsightError("IS value must be a string");
+		// 只允许首/尾出现 '*'（或首尾都出现，或只有一个，或仅 '*'）
+		// 存在中缀星（既不是第一个也不是最后一个位置）则报错
+		if (pat.includes("*")) {
+			const first = pat.indexOf("*");
+			const last = pat.lastIndexOf("*");
+			const atStart = first === 0;
+			const atEnd = last === pat.length - 1;
+			// 允许的形态： "*", "*xxx", "xxx*", "*xxx*"
+			const isOnlyStar = pat === "*";
+			const allowed = isOnlyStar || atStart || atEnd;
+			// 若既不在开头也不在结尾（出现中间的 *），则不允许
+			if (!allowed || (first !== last && !(atStart && atEnd))) {
+				throw new InsightError("IS pattern may only use '*' at the start and/or end");
+			}
+		}
 	}
 
 	private async parseSectionsFromZip(zip: any): Promise<SectionRow[]> {
@@ -275,7 +330,7 @@ export default class InsightFacade implements IInsightFacade {
 						try {
 							obj = JSON.parse(text);
 						} catch {
-							return; // 不是 JSON：忽略
+							return; // 不是 JSON：
 						}
 						if (!obj || !Array.isArray(obj.result)) {
 							return;
@@ -294,7 +349,7 @@ export default class InsightFacade implements IInsightFacade {
 
 							const instructor = r.Professor;
 							const title = r.Title;
-							const uuid = r.id;
+							const uuid = String(r.id);
 
 							// Year 统一转 number；overall -> 1900
 							let yearNum: number;
@@ -349,7 +404,7 @@ export default class InsightFacade implements IInsightFacade {
 		return x !== null && typeof x === "object" && !Array.isArray(x);
 	}
 
-	// Sections 可用字段与类型（key 的后半段）
+	// Sections 可用字段与类型
 	private readonly sectionsFieldTypes: Record<string, "number" | "string"> = {
 		dept: "string",
 		id: "string",
@@ -496,18 +551,16 @@ export default class InsightFacade implements IInsightFacade {
 
 	// IS 通配匹配（'*' 仅允许首尾）
 	private wildcardMatch(text: string, pattern: string): boolean {
-		// 转成正则：^...$，其中 * => .*
-		const esc = (s: string) => s.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
 		if (pattern === "*") return true;
-		const startsStar = pattern.startsWith("*");
-		const endsStar = pattern.endsWith("*");
-		const core = pattern.substring(startsStar ? 1 : 0, endsStar ? pattern.length - 1 : pattern.length);
-		const coreEsc = esc(core);
-		let rx: RegExp;
-		if (startsStar && endsStar) rx = new RegExp(coreEsc ? `${coreEsc}` : "", "i");
-		else if (startsStar) rx = new RegExp(`${coreEsc}$`, "i");
-		else if (endsStar) rx = new RegExp(`^${coreEsc}`, "i");
-		else rx = new RegExp(`^${coreEsc}$`, "i");
-		return rx.test(text);
+
+		const starts = pattern.startsWith("*");
+		const ends = pattern.endsWith("*");
+		const core = pattern.substring(starts ? 1 : 0, ends ? pattern.length - 1 : pattern.length);
+
+		if (starts && ends) return text.includes(core);   // *foo*
+		if (starts)       return text.endsWith(core);     // *foo
+		if (ends)         return text.startsWith(core);   // foo*
+		return text === core;                             // 无星
 	}
+
 }
