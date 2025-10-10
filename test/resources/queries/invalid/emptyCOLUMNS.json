@@ -1,0 +1,11 @@
+{
+	"title": "empty COLUMNS",
+	"input": {
+		"WHERE": {},
+		"OPTIONS": {
+			"COLUMNS": []
+		}
+	},
+	"errorExpected": true,
+	"expected": "InsightError"
+}
