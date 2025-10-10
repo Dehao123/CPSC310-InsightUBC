@@ -1,0 +1,6 @@
+{
+	"title": "queryMustBeObject",
+	"input": 400,
+	"errorExpected": true,
+	"expected": "InsightError"
+}
