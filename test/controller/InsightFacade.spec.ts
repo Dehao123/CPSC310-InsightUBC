@@ -603,7 +603,7 @@ describe("InsightFacade", function () {
 		it("LT must have exactly one key (hits 277)", async () => {
 			const q = {
 				WHERE: { LT: {} },
-				OPTIONS: { COLUMNS: ["sections_dept"] },
+				OPTIONS: { COLUMNS: ["sections_depts"] },
 			};
 			await expect(facade.performQuery(q)).to.be.rejectedWith(InsightError);
 		});
