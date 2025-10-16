@@ -1,0 +1,8 @@
+{
+	"title": "missing OPTIONS",
+	"input": {
+		"WHERE": {}
+	},
+	"errorExpected": true,
+	"expected": "InsightError"
+}
