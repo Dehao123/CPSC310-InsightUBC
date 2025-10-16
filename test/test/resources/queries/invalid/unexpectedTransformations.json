@@ -1,0 +1,10 @@
+{
+	"title": "unexpected Transformations",
+	"input": {
+		"WHERE": {},
+		"TRANSFORMATIONS": { "GROUP": ["sections_dept"] },
+		"OPTIONS": { "COLUMNS": ["sections_dept"] }
+	},
+	"errorExpected": true,
+	"expected": "InsightError"
+}
