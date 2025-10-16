@@ -1,0 +1,62 @@
+[
+  {
+    "sections_dept": "busi",
+    "sections_year": 1900,
+    "sections_avg": 4
+  },
+  {
+    "sections_dept": "educ",
+    "sections_year": 1900,
+    "sections_avg": 39.03
+  },
+  {
+    "sections_dept": "frst",
+    "sections_year": 1900,
+    "sections_avg": 0
+  },
+  {
+    "sections_dept": "lfs",
+    "sections_year": 1900,
+    "sections_avg": 0
+  },
+  {
+    "sections_dept": "wood",
+    "sections_year": 1900,
+    "sections_avg": 1
+  },
+  {
+    "sections_dept": "phil",
+    "sections_year": 2008,
+    "sections_avg": 33.2
+  },
+  {
+    "sections_dept": "hist",
+    "sections_year": 2009,
+    "sections_avg": 34
+  },
+  {
+    "sections_dept": "lfs",
+    "sections_year": 2009,
+    "sections_avg": 0
+  },
+  {
+    "sections_dept": "civl",
+    "sections_year": 2010,
+    "sections_avg": 33
+  },
+  {
+    "sections_dept": "fopr",
+    "sections_year": 2013,
+    "sections_avg": 4.5
+  },
+  {
+    "sections_dept": "educ",
+    "sections_year": 2015,
+    "sections_avg": 39.03
+  },
+  {
+    "sections_dept": "busi",
+    "sections_year": 2016,
+    "sections_avg": 4
+  }
+]

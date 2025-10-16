@@ -1,0 +1,82 @@
+[
+  {
+    "sections_dept": "phar",
+    "sections_avg": 95.07,
+    "sections_year": 2014
+  },
+  {
+    "sections_dept": "nurs",
+    "sections_avg": 95.13,
+    "sections_year": 2014
+  },
+  {
+    "sections_dept": "hgse",
+    "sections_avg": 95.29,
+    "sections_year": 2014
+  },
+  {
+    "sections_dept": "kin",
+    "sections_avg": 95.36,
+    "sections_year": 2014
+  },
+  {
+    "sections_dept": "epse",
+    "sections_avg": 95.44,
+    "sections_year": 2014
+  },
+  {
+    "sections_dept": "epse",
+    "sections_avg": 95.47,
+    "sections_year": 2014
+  },
+  {
+    "sections_dept": "sowk",
+    "sections_avg": 95.93,
+    "sections_year": 2014
+  },
+  {
+    "sections_dept": "etec",
+    "sections_avg": 95.96,
+    "sections_year": 2014
+  },
+  {
+    "sections_dept": "crwr",
+    "sections_avg": 96,
+    "sections_year": 2014
+  },
+  {
+    "sections_dept": "crwr",
+    "sections_avg": 96,
+    "sections_year": 2014
+  },
+  {
+    "sections_dept": "crwr",
+    "sections_avg": 96,
+    "sections_year": 2014
+  },
+  {
+    "sections_dept": "sowk",
+    "sections_avg": 96.09,
+    "sections_year": 2014
+  },
+  {
+    "sections_dept": "epse",
+    "sections_avg": 96.33,
+    "sections_year": 2014
+  },
+  {
+    "sections_dept": "epse",
+    "sections_avg": 96.9,
+    "sections_year": 2014
+  },
+  {
+    "sections_dept": "crwr",
+    "sections_avg": 97,
+    "sections_year": 2014
+  },
+  {
+    "sections_dept": "epse",
+    "sections_avg": 98.8,
+    "sections_year": 2014
+  }
+]
