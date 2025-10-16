@@ -101,9 +101,9 @@ export default class InsightFacade implements IInsightFacade {
 			}
 		} catch {}
 	}
-	private isFiniteInteger(x: any): x is number {
-		return this.isFiniteNumber(x) && Number.isInteger(x);
-	}
+	// private isFiniteInteger(x: any): x is number {
+	// 	return this.isFiniteNumber(x) && Number.isInteger(x);
+	// }
 
 	// ====== C1: addDataset（Sections）======
 	public async addDataset(id: string, content: string, kind: InsightDatasetKind): Promise<string[]> {
@@ -330,7 +330,7 @@ export default class InsightFacade implements IInsightFacade {
 						try {
 							obj = JSON.parse(text);
 						} catch {
-							return; // 不是 JSON：忽略
+							return; // 不是 JSON：
 						}
 						if (!obj || !Array.isArray(obj.result)) {
 							return;
@@ -404,7 +404,7 @@ export default class InsightFacade implements IInsightFacade {
 		return x !== null && typeof x === "object" && !Array.isArray(x);
 	}
 
-	// Sections 可用字段与类型（key 的后半段）
+	// Sections 可用字段与类型
 	private readonly sectionsFieldTypes: Record<string, "number" | "string"> = {
 		dept: "string",
 		id: "string",
