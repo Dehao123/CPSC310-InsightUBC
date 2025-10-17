@@ -1,9 +1,0 @@
-{
-	"title": "empty OR array",
-	"input": {
-		"WHERE": { "OR": [] },
-		"OPTIONS": { "COLUMNS": ["sections_dept"] }
-	},
-	"errorExpected": true,
-	"expected": "InsightError"
-}

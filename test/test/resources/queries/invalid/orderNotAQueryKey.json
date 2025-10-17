@@ -1,9 +1,0 @@
-{
-	"title": "order Not A Query Key",
-	"input": {
-		"WHERE": {},
-		"OPTIONS": { "COLUMNS": ["sections_dept"], "ORDER": "oops" }
-	},
-	"errorExpected": true,
-	"expected": "InsightError"
-}

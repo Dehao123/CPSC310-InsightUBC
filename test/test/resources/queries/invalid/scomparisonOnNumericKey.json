@@ -1,9 +1,0 @@
-{
-	"title": "s comparison On Numeric Key",
-	"input": {
-		"WHERE": { "IS": { "sections_avg": "9*" } },
-		"OPTIONS": { "COLUMNS": ["sections_dept"] }
-	},
-	"errorExpected": true,
-	"expected": "InsightError"
-}
