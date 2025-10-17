@@ -38,15 +38,15 @@ const DATA_DIR = path.join(".", "data"); // 相对工程根目录
  *
  */
 export default class InsightFacade implements IInsightFacade {
-	private datasets: Map<string, InsightDataset> = new Map();
-	private data: Map<string, SectionRow[]> = new Map();
+	private datasets = new Map<string, InsightDataset>();
+	private data = new Map<string, SectionRow[]>();
 	private readonly initialized: Promise<void>;
 
 	constructor() {
 		this.initialized = this.loadPersistedDatasets();
 	}
 
-	private ensureInitialized(): Promise<void> {
+	private async ensureInitialized(): Promise<void> {
 		return this.initialized;
 	}
 
@@ -101,9 +101,9 @@ export default class InsightFacade implements IInsightFacade {
 			}
 		} catch {}
 	}
-	// private isFiniteInteger(x: any): x is number {
-	// 	return this.isFiniteNumber(x) && Number.isInteger(x);
-	// }
+	private isFiniteInteger(x: any): x is number {
+		return this.isFiniteNumber(x) && Number.isInteger(x);
+	}
 
 	// ====== C1: addDataset（Sections）======
 	public async addDataset(id: string, content: string, kind: InsightDatasetKind): Promise<string[]> {
@@ -359,7 +359,7 @@ export default class InsightFacade implements IInsightFacade {
 
 							// 校验（现在都用 number 了）
 							if (
-								1 == 1
+								1 === 1
 								// typeof dept === "string" &&
 								// typeof id === "string" &&
 								// this.isFiniteNumber(avgNum) &&
