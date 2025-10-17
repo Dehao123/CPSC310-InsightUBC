@@ -1,0 +1,226 @@
+{
+	"title": "nest2",
+	"input": {
+		"WHERE": {
+			"AND": [
+				{
+					"OR": [
+						{
+							"LT": {
+								"sections_avg": 50
+							}
+						},
+						{
+							"EQ": {
+								"sections_year": 2025
+							}
+						}
+					]
+				},
+				{
+					"NOT": {
+						"IS": {
+							"sections_dept": "math"
+						}
+					}
+				}
+			]
+		},
+		"OPTIONS": {
+			"COLUMNS": [
+				"sections_dept",
+				"sections_year",
+				"sections_avg"
+			],
+			"ORDER": "sections_year"
+		}
+	},
+	"errorExpected": false,
+	"expected": [
+		{
+			"sections_dept": "wood",
+			"sections_year": 1900,
+			"sections_avg": 1
+		},
+		{
+			"sections_dept": "lfs",
+			"sections_year": 1900,
+			"sections_avg": 0
+		},
+		{
+			"sections_dept": "hist",
+			"sections_year": 1900,
+			"sections_avg": 46.33
+		},
+		{
+			"sections_dept": "hist",
+			"sections_year": 1900,
+			"sections_avg": 47.13
+		},
+		{
+			"sections_dept": "frst",
+			"sections_year": 1900,
+			"sections_avg": 0
+		},
+		{
+			"sections_dept": "educ",
+			"sections_year": 1900,
+			"sections_avg": 39.03
+		},
+		{
+			"sections_dept": "comm",
+			"sections_year": 1900,
+			"sections_avg": 49.07
+		},
+		{
+			"sections_dept": "chbe",
+			"sections_year": 1900,
+			"sections_avg": 44.88
+		},
+		{
+			"sections_dept": "busi",
+			"sections_year": 1900,
+			"sections_avg": 42.64
+		},
+		{
+			"sections_dept": "busi",
+			"sections_year": 1900,
+			"sections_avg": 49.47
+		},
+		{
+			"sections_dept": "busi",
+			"sections_year": 1900,
+			"sections_avg": 4
+		},
+		{
+			"sections_dept": "frst",
+			"sections_year": 2007,
+			"sections_avg": 49.14
+		},
+		{
+			"sections_dept": "busi",
+			"sections_year": 2007,
+			"sections_avg": 46.5
+		},
+		{
+			"sections_dept": "psyc",
+			"sections_year": 2008,
+			"sections_avg": 43.33
+		},
+		{
+			"sections_dept": "phil",
+			"sections_year": 2008,
+			"sections_avg": 33.2
+		},
+		{
+			"sections_dept": "lfs",
+			"sections_year": 2009,
+			"sections_avg": 0
+		},
+		{
+			"sections_dept": "hist",
+			"sections_year": 2009,
+			"sections_avg": 49.15
+		},
+		{
+			"sections_dept": "hist",
+			"sections_year": 2009,
+			"sections_avg": 34
+		},
+		{
+			"sections_dept": "comm",
+			"sections_year": 2009,
+			"sections_avg": 46.71
+		},
+		{
+			"sections_dept": "civl",
+			"sections_year": 2010,
+			"sections_avg": 33
+		},
+		{
+			"sections_dept": "busi",
+			"sections_year": 2010,
+			"sections_avg": 49.47
+		},
+		{
+			"sections_dept": "civl",
+			"sections_year": 2011,
+			"sections_avg": 49.25
+		},
+		{
+			"sections_dept": "chbe",
+			"sections_year": 2011,
+			"sections_avg": 42
+		},
+		{
+			"sections_dept": "hist",
+			"sections_year": 2013,
+			"sections_avg": 46.33
+		},
+		{
+			"sections_dept": "frst",
+			"sections_year": 2013,
+			"sections_avg": 46.59
+		},
+		{
+			"sections_dept": "fopr",
+			"sections_year": 2013,
+			"sections_avg": 4.5
+		},
+		{
+			"sections_dept": "busi",
+			"sections_year": 2013,
+			"sections_avg": 46.95
+		},
+		{
+			"sections_dept": "busi",
+			"sections_year": 2013,
+			"sections_avg": 42.64
+		},
+		{
+			"sections_dept": "busi",
+			"sections_year": 2013,
+			"sections_avg": 49.17
+		},
+		{
+			"sections_dept": "lled",
+			"sections_year": 2014,
+			"sections_avg": 49.86
+		},
+		{
+			"sections_dept": "lled",
+			"sections_year": 2014,
+			"sections_avg": 49.73
+		},
+		{
+			"sections_dept": "lled",
+			"sections_year": 2014,
+			"sections_avg": 48.9
+		},
+		{
+			"sections_dept": "lled",
+			"sections_year": 2015,
+			"sections_avg": 47.82
+		},
+		{
+			"sections_dept": "lled",
+			"sections_year": 2015,
+			"sections_avg": 47.29
+		},
+		{
+			"sections_dept": "educ",
+			"sections_year": 2015,
+			"sections_avg": 39.03
+		},
+		{
+			"sections_dept": "chem",
+			"sections_year": 2015,
+			"sections_avg": 42.5
+		},
+		{
+			"sections_dept": "busi",
+			"sections_year": 2016,
+			"sections_avg": 4
+		}
+	]
+}

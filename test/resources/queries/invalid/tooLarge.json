@@ -1,14 +1,17 @@
 {
-	"title": "result too large",
+	"title": "too large",
 	"input": {
 		"WHERE": {
-			"IS": {
-				"sections_dept": "c*"
+			"GT": {
+				"sections_avg": 5
 			}
 		},
 		"OPTIONS": {
-			"COLUMNS": ["sections_dept", "sections_id"],
-			"ORDER": "sections_id"
+			"COLUMNS": [
+				"sections_dept",
+				"sections_avg"
+			],
+			"ORDER": "sections_avg"
 		}
 	},
 	"errorExpected": true,
