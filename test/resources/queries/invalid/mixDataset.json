@@ -1,0 +1,14 @@
+{
+	"title": "mixDataset",
+	"input": {
+		"WHERE": {},
+		"OPTIONS": {
+			"COLUMNS": [
+				"sections_dept",
+				"rooms_name"
+			]
+		}
+	},
+	"errorExpected": true,
+	"expected": "InsightError"
+}
