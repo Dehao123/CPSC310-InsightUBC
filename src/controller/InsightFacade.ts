@@ -38,15 +38,15 @@ const DATA_DIR = path.join(".", "data"); // 相对工程根目录
  *
  */
 export default class InsightFacade implements IInsightFacade {
-	private datasets: Map<string, InsightDataset> = new Map();
-	private data: Map<string, SectionRow[]> = new Map();
+	private datasets = new Map<string, InsightDataset>();
+	private data = new Map<string, SectionRow[]>();
 	private readonly initialized: Promise<void>;
 
 	constructor() {
 		this.initialized = this.loadPersistedDatasets();
 	}
 
-	private ensureInitialized(): Promise<void> {
+	private async ensureInitialized(): Promise<void> {
 		return this.initialized;
 	}
 
@@ -101,9 +101,9 @@ export default class InsightFacade implements IInsightFacade {
 			}
 		} catch {}
 	}
-	// private isFiniteInteger(x: any): x is number {
-	// 	return this.isFiniteNumber(x) && Number.isInteger(x);
-	// }
+	private isFiniteInteger(x: any): x is number {
+		return this.isFiniteNumber(x) && Number.isInteger(x);
+	}
 
 	// ====== C1: addDataset（Sections）======
 	public async addDataset(id: string, content: string, kind: InsightDatasetKind): Promise<string[]> {
@@ -315,7 +315,6 @@ export default class InsightFacade implements IInsightFacade {
 		const tasks: Array<Promise<void>> = [];
 		let sawCoursesFolder = false;
 
-
 		// 遍历整个 zip，挑出 courses/ 下的所有文件（不要求扩展名）
 		zip.forEach((relativePath: string, file: any) => {
 			if (file.dir) return;
@@ -335,7 +334,6 @@ export default class InsightFacade implements IInsightFacade {
 						if (!obj || !Array.isArray(obj.result)) {
 							return;
 						}
-
 
 						for (const r of obj.result) {
 							const dept = r.Subject;
@@ -360,7 +358,8 @@ export default class InsightFacade implements IInsightFacade {
 							}
 
 							// 校验（现在都用 number 了）
-							if (1 == 1
+							if (
+								1 === 1
 								// typeof dept === "string" &&
 								// typeof id === "string" &&
 								// this.isFiniteNumber(avgNum) &&
@@ -557,10 +556,9 @@ export default class InsightFacade implements IInsightFacade {
 		const ends = pattern.endsWith("*");
 		const core = pattern.substring(starts ? 1 : 0, ends ? pattern.length - 1 : pattern.length);
 
-		if (starts && ends) return text.includes(core);   // *foo*
-		if (starts)       return text.endsWith(core);     // *foo
-		if (ends)         return text.startsWith(core);   // foo*
-		return text === core;                             // 无星
+		if (starts && ends) return text.includes(core); // *foo*
+		if (starts) return text.endsWith(core); // *foo
+		if (ends) return text.startsWith(core); // foo*
+		return text === core; // 无星
 	}
-
 }
