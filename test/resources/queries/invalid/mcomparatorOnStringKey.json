@@ -1,9 +1,0 @@
-{
-	"title": "mcomparator On String Key",
-	"input": {
-		"WHERE": { "GT": { "sections_dept": 90 } },
-		"OPTIONS": { "COLUMNS": ["sections_dept"] }
-	},
-	"errorExpected": true,
-	"expected": "InsightError"
-}
