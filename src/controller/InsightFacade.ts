@@ -315,7 +315,6 @@ export default class InsightFacade implements IInsightFacade {
 		const tasks: Array<Promise<void>> = [];
 		let sawCoursesFolder = false;
 
-
 		// 遍历整个 zip，挑出 courses/ 下的所有文件（不要求扩展名）
 		zip.forEach((relativePath: string, file: any) => {
 			if (file.dir) return;
@@ -335,7 +334,6 @@ export default class InsightFacade implements IInsightFacade {
 						if (!obj || !Array.isArray(obj.result)) {
 							return;
 						}
-
 
 						for (const r of obj.result) {
 							const dept = r.Subject;
@@ -360,7 +358,8 @@ export default class InsightFacade implements IInsightFacade {
 							}
 
 							// 校验（现在都用 number 了）
-							if (1 == 1
+							if (
+								1 == 1
 								// typeof dept === "string" &&
 								// typeof id === "string" &&
 								// this.isFiniteNumber(avgNum) &&
@@ -557,10 +556,9 @@ export default class InsightFacade implements IInsightFacade {
 		const ends = pattern.endsWith("*");
 		const core = pattern.substring(starts ? 1 : 0, ends ? pattern.length - 1 : pattern.length);
 
-		if (starts && ends) return text.includes(core);   // *foo*
-		if (starts)       return text.endsWith(core);     // *foo
-		if (ends)         return text.startsWith(core);   // foo*
-		return text === core;                             // 无星
+		if (starts && ends) return text.includes(core); // *foo*
+		if (starts) return text.endsWith(core); // *foo
+		if (ends) return text.startsWith(core); // foo*
+		return text === core; // 无星
 	}
-
 }

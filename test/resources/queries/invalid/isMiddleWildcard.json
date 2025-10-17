@@ -1,0 +1,9 @@
+{
+	"title": "is Middle Wildcard",
+	"input": {
+		"WHERE": { "IS": { "sections_dept": "da*ta" } },
+		"OPTIONS": { "COLUMNS": ["sections_dept"] }
+	},
+	"errorExpected": true,
+	"expected": "InsightError"
+}
