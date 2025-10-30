@@ -12,6 +12,7 @@ import * as fs from "fs-extra";
 import * as path from "path";
 
 const JSZip = require("jszip");
+const parse5 = require("parse5");
 
 let zip: any;
 
@@ -28,6 +29,21 @@ interface SectionRow {
 	year: number;
 }
 
+// ====== C2: Rooms dataset row ======
+interface RoomRow {
+	fullname: string;
+	shortname: string;
+	number: string;
+	name: string; // rooms_shortname + "_" + rooms_number
+	address: string;
+	lat: number;
+	lon: number;
+	seats: number;
+	type: string;
+	furniture: string;
+	href: string;
+}
+
 const DATA_DIR = path.join(".", "data");
 
 /**
@@ -38,7 +54,31 @@ const DATA_DIR = path.join(".", "data");
 export default class InsightFacade implements IInsightFacade {
 	private datasets = new Map<string, InsightDataset>();
 	private data = new Map<string, SectionRow[]>();
+	private dataRooms = new Map<string, RoomRow[]>();
 	private readonly initialized: Promise<void>;
+
+	private async geoLookup(address: string): Promise<{ lat?: number; lon?: number; error?: string } | undefined> {
+		const http = require("http");
+		const team = "project_team196"; // TODO: 改成你的 team 号
+		const encoded = encodeURIComponent(address);
+		const url = `http://cs310.students.cs.ubc.ca:11316/api/v1/${team}/${encoded}`;
+
+		return new Promise((resolve) => {
+			http
+				.get(url, (res: any) => {
+					let data = "";
+					res.on("data", (chunk: any) => (data += chunk));
+					res.on("end", () => {
+						try {
+							resolve(JSON.parse(data));
+						} catch {
+							resolve(undefined);
+						}
+					});
+				})
+				.on("error", () => resolve(undefined));
+		});
+	}
 
 	constructor() {
 		this.initialized = this.loadPersistedDatasets();
@@ -52,8 +92,13 @@ export default class InsightFacade implements IInsightFacade {
 		return typeof id === "string" && id.trim().length > 0 && !id.includes("_");
 	}
 
-	private makePersistPath(id: string): string {
-		return path.join(DATA_DIR, `${id}.sections.json`);
+	// private makePersistPath(id: string): string {
+	// 	return path.join(DATA_DIR, `${id}.sections.json`);
+	// }
+
+	private makePersistPathByKind(id: string, kind: InsightDatasetKind): string {
+		const suffix = kind === InsightDatasetKind.Sections ? ".sections.json" : ".rooms.json";
+		return path.join(DATA_DIR, `${id}${suffix}`);
 	}
 
 	private isFiniteNumber(x: any): x is number {
@@ -70,6 +115,24 @@ export default class InsightFacade implements IInsightFacade {
 
 			const entries = await fs.readdir(DATA_DIR);
 			for (const entry of entries) {
+				if (entry.endsWith(".rooms.json")) {
+					const id = entry.slice(0, -".rooms.json".length);
+					const filePath = path.join(DATA_DIR, entry);
+					try {
+						const stored = await fs.readJson(filePath);
+						if (!stored || stored.kind !== InsightDatasetKind.Rooms || !Array.isArray(stored.rooms)) {
+							continue;
+						}
+						const rooms = stored.rooms as RoomRow[];
+						if (rooms.length === 0) continue;
+						const rows = rooms.map((r) => ({ ...r }));
+						const numRows = typeof stored.numRows === "number" ? stored.numRows : rows.length;
+
+						if (!this.dataRooms.has(id)) this.dataRooms.set(id, rows);
+						if (!this.datasets.has(id)) this.datasets.set(id, { id, kind: InsightDatasetKind.Rooms, numRows });
+					} catch {}
+					continue; // 防止落到 sections 判断
+				}
 				if (!entry.endsWith(".sections.json")) {
 					continue;
 				}
@@ -100,55 +163,71 @@ export default class InsightFacade implements IInsightFacade {
 		return this.isFiniteNumber(x) && Number.isInteger(x);
 	}
 
-	// ====== C1: addDataset（Sections）======
 	public async addDataset(id: string, content: string, kind: InsightDatasetKind): Promise<string[]> {
 		await this.ensureInitialized();
 
 		if (!this.isValidId(id)) throw new InsightError("Invalid id");
-
-		if (kind !== InsightDatasetKind.Sections) throw new InsightError("not section");
-
 		if (this.datasets.has(id)) throw new InsightError("Duplicate id");
 
-		const persistPath = this.makePersistPath(id);
+		// 选择持久化路径（按 kind）
+		const persistPath = this.makePersistPathByKind(id, kind);
 		if (await fs.pathExists(persistPath)) throw new InsightError("Duplicate id on disk");
 
+		// 解压
 		try {
 			zip = await JSZip.loadAsync(Buffer.from(content, "base64"));
 		} catch {
 			throw new InsightError("Invalid base64 zip");
 		}
 
-		const rows = await this.parseSectionsFromZip(zip); // 你自己的解析函数（异步）
-		if (rows.length === 0) throw new InsightError("No valid rows");
+		if (kind === InsightDatasetKind.Sections) {
+			const rows = await this.parseSectionsFromZip(zip); // 旧逻辑
+			if (rows.length === 0) throw new InsightError("No valid rows");
 
-		await fs.ensureDir(DATA_DIR);
-		await fs.writeJson(persistPath, { kind, numRows: rows.length, sections: rows });
+			await fs.ensureDir(DATA_DIR);
+			await fs.writeJson(persistPath, { kind, numRows: rows.length, sections: rows });
 
-		this.data.set(id, rows);
-		this.datasets.set(id, { id, kind, numRows: rows.length });
+			this.data.set(id, rows);
+			this.datasets.set(id, { id, kind, numRows: rows.length });
+			return Array.from(this.datasets.keys()).sort();
+		}
 
-		return Array.from(this.datasets.keys()).sort();
+		// ====== C2: Rooms 分支 ======
+		if (kind === InsightDatasetKind.Rooms) {
+			const rooms = await this.parseRoomsFromZipAndGeocode(zip); // 见 2.2 / 2.3
+			if (rooms.length === 0) throw new InsightError("No valid rows");
+
+			await fs.ensureDir(DATA_DIR);
+			await fs.writeJson(persistPath, { kind, numRows: rooms.length, rooms });
+
+			this.dataRooms.set(id, rooms);
+			this.datasets.set(id, { id, kind, numRows: rooms.length });
+			return Array.from(this.datasets.keys()).sort();
+		}
+
+		throw new InsightError("Unknown dataset kind");
 	}
 
 	public async removeDataset(id: string): Promise<string> {
 		if (!this.isValidId(id)) throw new InsightError("Invalid id");
-
 		await this.ensureInitialized();
 
-		const persistPath = this.makePersistPath(id);
-		const onDisk = await fs.pathExists(persistPath);
+		const paths = [
+			this.makePersistPathByKind(id, InsightDatasetKind.Sections),
+			this.makePersistPathByKind(id, InsightDatasetKind.Rooms),
+		];
+
+		const onDisk = (await Promise.all(paths.map((p) => fs.pathExists(p)))).some(Boolean);
 		const inMem = this.datasets.has(id);
 
-		if (!onDisk && !inMem) {
-			throw new NotFoundError("Dataset not found");
-		}
+		if (!onDisk && !inMem) throw new NotFoundError("Dataset not found");
 
-		if (onDisk) {
-			await fs.remove(persistPath);
+		for (const p of paths) {
+			if (await fs.pathExists(p)) await fs.remove(p);
 		}
 		this.datasets.delete(id);
 		this.data.delete(id);
+		this.dataRooms.delete(id);
 		return id;
 	}
 
@@ -197,7 +276,7 @@ export default class InsightFacade implements IInsightFacade {
 		const dataset = this.data.get(datasetId);
 		if (!dataset) throw new InsightError(`Dataset '${datasetId}' not added`);
 
-		allKeys.forEach((k) => this.assertValidSectionsKey(k));
+		//allKeys.forEach((k) => this.assertValidSectionsKey(k));
 
 		const filtered = dataset.filter((row) => this.evalWhere(where, row, datasetId));
 
@@ -362,6 +441,188 @@ export default class InsightFacade implements IInsightFacade {
 		return rows;
 	}
 
+	// ====== C2: HTML 解析（parse5） ======
+	private findAll(node: any, pred: (n: any) => boolean, out: any[] = []): any[] {
+		if (!node) return out;
+		if (pred(node)) out.push(node);
+		if (node.childNodes) {
+			for (const c of node.childNodes) this.findAll(c, pred, out);
+		}
+		return out;
+	}
+
+	private getAttr(node: any, name: string): string | undefined {
+		if (!node?.attrs) return undefined;
+		const f = node.attrs.find((a: any) => a.name === name);
+		return f?.value;
+	}
+
+	private getText(node: any): string {
+		if (!node) return "";
+		if (node.nodeName === "#text") return node.value ?? "";
+		let s = "";
+		if (node.childNodes) for (const c of node.childNodes) s += this.getText(c);
+		return s.trim();
+	}
+
+	// 根据包含某个 <td class="..."> 的 table 锁定表
+	private findTableByTdClass(doc: any, classSubstr: string): any | undefined {
+		const tds = this.findAll(doc, (n) => n.nodeName === "td" && (this.getAttr(n, "class") ?? "").includes(classSubstr));
+		if (tds.length === 0) return undefined;
+		// 向上找最近的 table
+		const parents: any[] = [];
+		const parentMap = new Map<any, any>();
+		// 建一遍 parent 指针（parse5 不带 parent）
+		const buildParent = (n: any) => {
+			if (!n?.childNodes) return;
+			for (const c of n.childNodes) {
+				parentMap.set(c, n);
+				buildParent(c);
+			}
+		};
+		// 需要已知 doc 的树根
+		buildParent(doc);
+
+		const tableOf = (n: any): any | undefined => {
+			let p = n;
+			while (p) {
+				if (p.nodeName === "table") return p;
+				p = parentMap.get(p);
+			}
+			return undefined;
+		};
+
+		for (const td of tds) {
+			const t = tableOf(td);
+			if (t) return t;
+		}
+		return undefined;
+	}
+
+	private async parseRoomsFromZipAndGeocode(zip: any): Promise<RoomRow[]> {
+		// 1) 读取根目录 index.htm
+		const indexFile = zip.file("index.htm");
+		if (!indexFile) return [];
+		const indexHtml = await indexFile.async("string");
+		const indexDoc = parse5.parse(indexHtml);
+
+		// 2) 找到“建筑列表表格”：td class 至少能包含 address 或 title 的那张
+		const bldgTable =
+			this.findTableByTdClass(indexDoc, "views-field-field-building-address") ??
+			this.findTableByTdClass(indexDoc, "views-field-title");
+		if (!bldgTable) return [];
+
+		// 3) 抽取 行：shortname/fullname/address/楼文件 href
+		const buildings: Array<{ shortname: string; fullname: string; address: string; href: string }> = [];
+		const trs = this.findAll(bldgTable, (n) => n.nodeName === "tr");
+		for (const tr of trs) {
+			const tds = (tr.childNodes ?? []).filter((n: any) => n.nodeName === "td");
+			if (tds.length === 0) continue;
+
+			let fullname = "";
+			let shortname = "";
+			let address = "";
+			let href = "";
+
+			for (const td of tds) {
+				const cls = this.getAttr(td, "class") ?? "";
+				if (cls.includes("views-field-title")) {
+					const a = (td.childNodes ?? []).flatMap((c: any) => c.childNodes ?? []).find((n: any) => n.nodeName === "a");
+					if (a) {
+						fullname = this.getText(a);
+						const h = this.getAttr(a, "href");
+						if (h) href = h.startsWith("./") ? h.slice(2) : h; // 统一相对路径
+					}
+				}
+				if (cls.includes("views-field-field-building-address")) {
+					address = this.getText(td);
+				}
+				if (cls.includes("views-field-field-building-code")) {
+					shortname = this.getText(td);
+				}
+			}
+			if (fullname && shortname && address && href) {
+				buildings.push({ fullname, shortname, address, href });
+			}
+		}
+
+		// 4) 读取每栋楼的房间表，先临时不加 lat/lon
+		type TempRoom = Omit<RoomRow, "lat" | "lon">;
+		const byBuilding = new Map<
+			string,
+			{ meta: { fullname: string; shortname: string; address: string }; rooms: TempRoom[] }
+		>();
+
+		for (const b of buildings) {
+			const file = zip.file(b.href);
+			if (!file) continue; // 楼文件可能不存在
+			const html = await file.async("string");
+			const doc = parse5.parse(html);
+			const roomTable =
+				this.findTableByTdClass(doc, "views-field-field-room-number") ??
+				this.findTableByTdClass(doc, "views-field-field-room-capacity") ??
+				this.findTableByTdClass(doc, "views-field-title");
+			if (!roomTable) continue;
+
+			const trs2 = this.findAll(roomTable, (n) => n.nodeName === "tr");
+			for (const tr of trs2) {
+				const tds = (tr.childNodes ?? []).filter((n: any) => n.nodeName === "td");
+				if (tds.length === 0) continue;
+
+				let number = "",
+					seatsStr = "",
+					type = "",
+					furniture = "",
+					href = "";
+				for (const td of tds) {
+					const cls = this.getAttr(td, "class") ?? "";
+					if (cls.includes("views-field-field-room-number")) {
+						number = this.getText(td);
+						const a = this.findAll(td, (n) => n.nodeName === "a")[0];
+						if (a) href = this.getAttr(a, "href") ?? "";
+					}
+					if (cls.includes("views-field-field-room-capacity")) seatsStr = this.getText(td);
+					if (cls.includes("views-field-field-room-type")) type = this.getText(td);
+					if (cls.includes("views-field-field-room-furniture")) furniture = this.getText(td);
+				}
+				const seats = Number(seatsStr);
+				if (!number || !Number.isFinite(seats)) continue;
+
+				const meta = { fullname: b.fullname, shortname: b.shortname, address: b.address };
+				if (!byBuilding.has(b.shortname)) byBuilding.set(b.shortname, { meta, rooms: [] });
+				const br = byBuilding.get(b.shortname)!;
+
+				const name = `${b.shortname}_${number}`;
+				br.rooms.push({
+					fullname: b.fullname,
+					shortname: b.shortname,
+					number,
+					name,
+					address: b.address,
+					seats,
+					type,
+					furniture,
+					href,
+				});
+			}
+		}
+
+		// 5) 对“有有效房间”的建筑打地理编码，并补到每个房间
+		const out: RoomRow[] = [];
+		for (const [shortname, pack] of byBuilding) {
+			if (pack.rooms.length === 0) continue;
+			const geo = await this.geoLookup(pack.meta.address); // 2.3
+			if (!geo || typeof geo.lat !== "number" || typeof geo.lon !== "number") {
+				// 该楼所有房间作废（spec：room 的有效性包含地理编码成功）
+				continue;
+			}
+			for (const r of pack.rooms) {
+				out.push({ ...r, lat: geo.lat, lon: geo.lon });
+			}
+		}
+		return out;
+	}
+
 	private isObject(x: any): x is Record<string, any> {
 		return x !== null && typeof x === "object" && !Array.isArray(x);
 	}
@@ -377,6 +638,21 @@ export default class InsightFacade implements IInsightFacade {
 		fail: "number",
 		audit: "number",
 		year: "number",
+	};
+
+	// ====== C2: rooms 字段表 ======
+	private readonly roomsFieldTypes: Record<string, "number" | "string"> = {
+		fullname: "string",
+		shortname: "string",
+		number: "string",
+		name: "string",
+		address: "string",
+		lat: "number",
+		lon: "number",
+		seats: "number",
+		type: "string",
+		furniture: "string",
+		href: "string",
 	};
 
 	private splitKey(k: string): [string, string] {
