@@ -527,7 +527,7 @@ export default class InsightFacade implements IInsightFacade {
 			for (const td of tds) {
 				const cls = this.getAttr(td, "class") ?? "";
 				if (cls.includes("views-field-title")) {
-					const a = (td.childNodes ?? []).flatMap((c: any) => c.childNodes ?? []).find((n: any) => n.nodeName === "a");
+					const a = this.findAll(td, (n: any) => n.nodeName === "a")[0];
 					if (a) {
 						fullname = this.getText(a);
 						const h = this.getAttr(a, "href");
