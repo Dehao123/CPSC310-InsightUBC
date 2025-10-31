@@ -1,0 +1,51 @@
+{
+	"title": "Simple rooms query",
+	"input": {
+		"WHERE": {
+			"GT": {
+				"rooms_seats": 300
+			}
+		},
+		"OPTIONS": {
+			"COLUMNS": [
+				"rooms_shortname",
+				"rooms_seats"
+			]
+		}
+	},
+	"errorExpected": false,
+	"expected": [
+		{
+			"rooms_shortname": "CIRS",
+			"rooms_seats": 426
+		},
+		{
+			"rooms_shortname": "ESB",
+			"rooms_seats": 350
+		},
+		{
+			"rooms_shortname": "HEBB",
+			"rooms_seats": 375
+		},
+		{
+			"rooms_shortname": "LSC",
+			"rooms_seats": 350
+		},
+		{
+			"rooms_shortname": "LSC",
+			"rooms_seats": 350
+		},
+		{
+			"rooms_shortname": "OSBO",
+			"rooms_seats": 442
+		},
+		{
+			"rooms_shortname": "WESB",
+			"rooms_seats": 325
+		},
+		{
+			"rooms_shortname": "WOOD",
+			"rooms_seats": 503
+		}
+	]
+}
