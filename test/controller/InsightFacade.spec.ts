@@ -294,7 +294,7 @@ describe("InsightFacade", function () {
 		});
 	});
 
-	// ========== PerformQuery (Sections - C1) ==========
+	// ========== PerformQuery (Sectisons - C1) ==========
 	describe("PerformQuery - Sections", function () {
 		const errors = new Map<string, typeof InsightError | typeof NotFoundError | typeof ResultTooLargeError>([
 			["InsightError", InsightError],
