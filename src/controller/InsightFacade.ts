@@ -244,61 +244,186 @@ export default class InsightFacade implements IInsightFacade {
 		const q = query as any;
 		if (!("WHERE" in q) || !("OPTIONS" in q)) throw new InsightError("Query must have WHERE and OPTIONS");
 		if (!this.isObject(q.WHERE)) throw new InsightError("WHERE must be an object");
-		if ("TRANSFORMATIONS" in q) throw new InsightError("Transformations not supported in C1");
 
 		const where = q.WHERE;
 		const options = q.OPTIONS;
+		const transf = q.TRANSFORMATIONS;
 
 		if (!options || !Array.isArray(options.COLUMNS) || options.COLUMNS.length === 0) {
 			throw new InsightError("OPTIONS.COLUMNS must be a non-empty array");
 		}
 		const columnKeys: string[] = options.COLUMNS.slice();
 
-		let orderKeys: string[] = [];
-		if (options.ORDER !== undefined) {
-			const ord = options.ORDER;
-			if (typeof ord !== "string") {
-				throw new InsightError("ORDER must be a string in C1");
-			}
-			if (!columnKeys.includes(ord)) {
-				throw new InsightError("ORDER must use a key from COLUMNS");
-			}
-			orderKeys = [ord];
+		// ---- 解析 ORDER（同时返回所有排序用到的 key，稍后用于 id 推断与校验）
+		const orderKeys: string[] = this.extractOrderKeys(options.ORDER);
+		for (const k of orderKeys) {
+			if (!columnKeys.includes(k)) throw new InsightError("ORDER must use keys from COLUMNS");
 		}
 
 		if (this.isObject(where) && Object.keys(where).length > 0) {
 			this.assertValidFilter(where);
 		}
 
-		const whereKeys = this.collectWhereKeys(where);
-		const allKeys = [...whereKeys, ...columnKeys, ...orderKeys];
-		const datasetId = this.validateAndGetDatasetId(allKeys);
-		const dataset = this.data.get(datasetId);
-		if (!dataset) throw new InsightError(`Dataset '${datasetId}' not added`);
+		// ---- 解析 TRANSFORMATIONS
+		let groupKeys: string[] = [];
+		let applyRules: Array<{ applykey: string; token: "MAX" | "MIN" | "AVG" | "SUM" | "COUNT"; key: string }> = [];
+		if (transf !== undefined) {
+			if (!this.isObject(transf)) throw new InsightError("TRANSFORMATIONS must be object");
+			if (!Array.isArray(transf.GROUP) || transf.GROUP.length === 0)
+				throw new InsightError("GROUP must be a non-empty array");
+			groupKeys = transf.GROUP.slice();
 
-		//allKeys.forEach((k) => this.assertValidSectionsKey(k));
-
-		const filtered = dataset.filter((row) => this.evalWhere(where, row, datasetId));
-
-		if (filtered.length > 5000) {
-			throw new ResultTooLargeError("Result too large");
-		}
-
-		const projected: InsightResult[] = filtered.map((row) => {
-			const out: InsightResult = {};
-			for (const col of columnKeys) {
-				const [, field] = this.splitKey(col);
-				out[col] = this.getFieldValue(row, field);
+			if (transf.APPLY !== undefined) {
+				if (!Array.isArray(transf.APPLY)) throw new InsightError("APPLY must be an array");
+				for (const rule of transf.APPLY) {
+					if (!this.isObject(rule) || Object.keys(rule).length !== 1) throw new InsightError("APPLYRULE shape error");
+					const applykey = Object.keys(rule)[0];
+					const inner = rule[applykey];
+					if (!this.isObject(inner) || Object.keys(inner).length !== 1)
+						throw new InsightError("APPLYRULE inner shape error");
+					const token = Object.keys(inner)[0] as any;
+					const key = inner[token];
+					applyRules.push({ applykey, token, key });
+				}
+				const s = new Set(applyRules.map((r) => r.applykey));
+				if (s.size !== applyRules.length) throw new InsightError("Duplicate applykey");
 			}
-			return out;
-		});
 
-		if (options.ORDER !== undefined) {
-			const ord = options.ORDER as string;
-			projected.sort((a, b) => this.cmp(a[ord], b[ord]));
+			// COLUMNS 只能来自 GROUP 的键或 applykey
+			const allowed = new Set<string>([...groupKeys, ...applyRules.map((r) => r.applykey)]);
+			for (const c of columnKeys) {
+				if (!allowed.has(c)) throw new InsightError("COLUMNS must be subset of GROUP keys and applykeys");
+			}
 		}
 
-		return projected;
+		// ---- 采集所有“带下划线的真实数据键”来推断 datasetId（避免把 applykey 算进去）
+		const whereKeys = this.collectWhereKeys(where);
+		const isDatasetKey = (k: string) => typeof k === "string" && k.includes("_");
+
+		const idKeys: string[] = [
+			...whereKeys,
+			...groupKeys, // groupKeys 都是 dataset keys
+			...applyRules.map((r) => r.key), // APPLY 里引用的 dataset key
+			...orderKeys.filter(isDatasetKey), // ORDER 里如果是 dataset key 也纳入
+			...(transf ? [] : columnKeys.filter(isDatasetKey)), // 无 TRANSFORMATIONS 时，COLUMNS 也是 dataset keys
+		];
+
+		const datasetId = this.validateAndGetDatasetId(idKeys);
+		const meta = this.datasets.get(datasetId);
+		if (!meta) throw new InsightError(`Dataset '${datasetId}' not added`);
+
+		const isRooms = meta.kind === InsightDatasetKind.Rooms;
+		const fieldTable = isRooms ? this.roomsFieldTypes : this.sectionsFieldTypes;
+		const allRows: any[] | undefined = isRooms ? this.dataRooms.get(datasetId) : this.data.get(datasetId);
+		if (!allRows) throw new InsightError(`Dataset '${datasetId}' not added`);
+
+		// ---- 对所有真正的 dataset 字段做统一校验
+		const assertValidKey = (full: string, expected?: "number" | "string") => {
+			if (!isDatasetKey(full)) return; // 跳过 applykey
+			const [ds, f] = this.splitKey(full);
+			if (ds !== datasetId) throw new InsightError("Mixed dataset ids");
+			if (!(f in fieldTable)) throw new InsightError(`Unknown field '${f}'`);
+			if (expected && fieldTable[f] !== expected) throw new InsightError(`Field '${f}' must be ${expected}`);
+		};
+		[
+			...whereKeys,
+			...groupKeys,
+			...applyRules.map((r) => r.key),
+			...orderKeys.filter(isDatasetKey),
+			...(transf ? [] : columnKeys.filter(isDatasetKey)),
+		].forEach((k) => assertValidKey(k));
+
+		// ---- WHERE 过滤（对 rooms/sections 通用）
+		const filtered = allRows.filter((r) => this.evalWhereGeneric(where, r, datasetId, fieldTable));
+
+		let results: InsightResult[] = [];
+
+		if (transf === undefined) {
+			// 无 GROUP/APPLY：直接投影
+			results = filtered.map((row) => {
+				const out: InsightResult = {};
+				for (const col of columnKeys) {
+					const [, f] = this.splitKey(col);
+					out[col] = row[f];
+				}
+				return out;
+			});
+		} else {
+			// 分组
+			const groupMap = new Map<string, any[]>();
+			const makeGroupKey = (row: any) => {
+				const kv: any = {};
+				for (const g of groupKeys) {
+					const [, f] = this.splitKey(g);
+					kv[g] = row[f];
+				}
+				return JSON.stringify(kv);
+			};
+			for (const r of filtered) {
+				const k = makeGroupKey(r);
+				if (!groupMap.has(k)) groupMap.set(k, []);
+				groupMap.get(k)!.push(r);
+			}
+
+			// 聚合
+			const Decimal = require("decimal.js");
+			const compute = (token: string, key: string, rs: any[]) => {
+				const [, f] = this.splitKey(key);
+				if (token === "COUNT") {
+					const s = new Set<any>();
+					for (const r of rs) s.add(r[f]);
+					return s.size;
+				}
+				if (fieldTable[f] !== "number") throw new InsightError(`${token} requires numeric field`);
+				if (token === "MAX") return Math.max(...rs.map((r) => Number(r[f])));
+				if (token === "MIN") return Math.min(...rs.map((r) => Number(r[f])));
+				if (token === "SUM") {
+					const total = rs.reduce((acc, r) => acc.plus(new Decimal(r[f])), new Decimal(0));
+					return Number(total.toNumber().toFixed(2));
+				}
+				if (token === "AVG") {
+					const total = rs.reduce((acc, r) => acc.plus(new Decimal(r[f])), new Decimal(0));
+					const avg = total.toNumber() / rs.length;
+					return Number(avg.toFixed(2));
+				}
+				throw new InsightError(`Unknown APPLY token '${token}'`);
+			};
+
+			const out: InsightResult[] = [];
+			for (const [gKey, rs] of groupMap) {
+				const base = JSON.parse(gKey); // { "rooms_shortname": "DMP", ... }
+				const row: any = { ...base };
+				for (const r of applyRules) row[r.applykey] = compute(r.token, r.key, rs);
+
+				// 投影
+				const proj: InsightResult = {};
+				for (const c of columnKeys) proj[c] = row[c];
+				out.push(proj);
+			}
+			results = out;
+		}
+
+		if (results.length > 5000) throw new ResultTooLargeError("Result too large");
+
+		// ---- 排序（字符串 或 {dir, keys}）
+		if (options.ORDER !== undefined) {
+			const ord = options.ORDER;
+			if (typeof ord === "string") {
+				results.sort((a, b) => this.cmp(a[ord], b[ord]));
+			} else {
+				const dir = ord.dir === "DOWN" ? -1 : 1;
+				const keys: string[] = ord.keys;
+				results.sort((a, b) => {
+					for (const k of keys) {
+						if (a[k] === b[k]) continue;
+						return (a[k] < b[k] ? -1 : 1) * dir;
+					}
+					return 0;
+				});
+			}
+		}
+
+		return results;
 	}
 
 	private assertValidFilter(node: any): void {
@@ -706,6 +831,8 @@ export default class InsightFacade implements IInsightFacade {
 		if (order === undefined) return [];
 		if (typeof order === "string") return [order];
 		if (this.isObject(order)) {
+			const dir = order.dir ?? "UP";
+			if (dir !== "UP" && dir !== "DOWN") throw new InsightError("ORDER.dir must be 'UP' or 'DOWN'");
 			if (!Array.isArray(order.keys) || order.keys.length === 0) {
 				throw new InsightError("ORDER.keys must be a non-empty array");
 			}
@@ -788,5 +915,59 @@ export default class InsightFacade implements IInsightFacade {
 		if (starts) return text.endsWith(core); // *foo
 		if (ends) return text.startsWith(core); // foo*
 		return text === core; // foo
+	}
+
+	private evalWhereGeneric(
+		where: any,
+		row: any,
+		datasetId: string,
+		fieldTable: Record<string, "number" | "string">
+	): boolean {
+		if (!where || Object.keys(where).length === 0) return true;
+		const op = Object.keys(where)[0];
+		const val = where[op];
+
+		switch (op) {
+			case "AND":
+				if (!Array.isArray(val) || val.length === 0) throw new InsightError("AND needs non-empty array");
+				return val.every((c: any) => this.evalWhereGeneric(c, row, datasetId, fieldTable));
+			case "OR":
+				if (!Array.isArray(val) || val.length === 0) throw new InsightError("OR needs non-empty array");
+				return val.some((c: any) => this.evalWhereGeneric(c, row, datasetId, fieldTable));
+			case "NOT":
+				return !this.evalWhereGeneric(val, row, datasetId, fieldTable);
+
+			case "LT":
+			case "GT":
+			case "EQ": {
+				if (!this.isObject(val) || Object.keys(val).length !== 1) throw new InsightError(`${op} shape error`);
+				const key = Object.keys(val)[0];
+				const [ds, f] = this.splitKey(key);
+				if (ds !== datasetId) throw new InsightError("Mixed dataset ids");
+				if (fieldTable[f] !== "number") throw new InsightError(`${op} requires numeric field`);
+				const cmpVal = val[key];
+				if (typeof cmpVal !== "number") throw new InsightError(`${op} value must be number`);
+				const cur = (row as any)[f] as number;
+				if (op === "LT") return cur < cmpVal;
+				if (op === "GT") return cur > cmpVal;
+				return cur === cmpVal;
+			}
+
+			case "IS": {
+				if (!this.isObject(val) || Object.keys(val).length !== 1) throw new InsightError("IS shape error");
+				const key = Object.keys(val)[0];
+				const [ds, f] = this.splitKey(key);
+				if (ds !== datasetId) throw new InsightError("Mixed dataset ids");
+				if (fieldTable[f] !== "string") throw new InsightError("IS requires string field");
+				const pattern = val[key];
+				if (typeof pattern !== "string") throw new InsightError("IS value must be string");
+				if (pattern.slice(1, -1).includes("*")) throw new InsightError("'*' only allowed at ends");
+				const str = String((row as any)[f]);
+				return this.wildcardMatch(str, pattern);
+			}
+
+			default:
+				throw new InsightError(`Unknown WHERE operator '${op}'`);
+		}
 	}
 }
