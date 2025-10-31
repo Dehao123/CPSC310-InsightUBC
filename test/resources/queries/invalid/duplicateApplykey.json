@@ -1,0 +1,31 @@
+{
+	"title": "Duplicate applykey",
+	"input": {
+		"WHERE": {},
+		"OPTIONS": {
+			"COLUMNS": [
+				"sections_dept",
+				"avg"
+			]
+		},
+		"TRANSFORMATIONS": {
+			"GROUP": [
+				"sections_dept"
+			],
+			"APPLY": [
+				{
+					"avg": {
+						"MAX": "sections_avg"
+					}
+				},
+				{
+					"avg": {
+						"MIN": "sections_avg"
+					}
+				}
+			]
+		}
+	},
+	"errorExpected": true,
+	"expected": "InsightError"
+}
