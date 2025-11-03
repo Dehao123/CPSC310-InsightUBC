@@ -1,0 +1,28 @@
+{
+	"title": "over 5000 result",
+	"input": {
+		"WHERE": {
+			"NOT": {
+				"AND": [
+					{
+						"GT": {
+							"sections_avg": 95
+						}
+					},
+					{
+						"LT": {
+							"sections_pass": 50
+						}
+					}
+				]
+			}
+		},
+		"OPTIONS": {
+			"COLUMNS": [
+				"sections_dept"
+			]
+		}
+	},
+	"errorExpected": true,
+	"expected": "ResultTooLargeError"
+}
