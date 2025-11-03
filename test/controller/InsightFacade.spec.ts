@@ -460,6 +460,8 @@ describe("InsightFacade", function () {
 		it("[valid/cOUNTOnStringField.json] COUNT on string field", checkQuery);
 		it("[valid/aPPLYMIN.json] APPLY MIN", checkQuery);
 		it("[valid/aPPLYSUM.json] APPLY SUM", checkQuery);
+		it("[valid/and_two_predicates.Input.json] and_two_predicates.Input", checkQuery);
+		it("[valid/order_multi_keys_equal.Input.json] order_multi_keys_equal.Input", checkQuery);
 
 		// ✅ 多键排序
 		// it("[valid/order_multi_keys.json] ORDER BY multiple keys", checkQuery);
@@ -472,5 +474,74 @@ describe("InsightFacade", function () {
 		it("[invalid/aPPLYNotAnArray.json] APPLY not an array", checkQuery);
 		it("[invalid/aPPLYRULEHasMultipleKeys.json] APPLYRULE has multiple keys", checkQuery);
 		it("[invalid/over5000Result.json] over 5000 result", checkQuery);
+		it("[invalid/lt_shape_error.json] lt_shape_error", checkQuery);
+		it("[invalid/number_comp_mixed_dataset.json] number_comp_mixed_dataset", checkQuery);
+		it("[invalid/gt_value_not_number.json] gt_value_not_number", checkQuery);
+		it("[invalid/is_shape_error.json] is_shape_error", checkQuery);
+		it("[invalid/is_mixed_dataset.json] is_mixed_dataset", checkQuery);
+		it("[invalid/is_value_not_string_2.json] is_value_not_string_2", checkQuery);
+		it("[invalid/is_middle_star_again.json] is_middle_star_again", checkQuery);
+		it("[invalid/where_unknown_operator.json] where_unknown_operator", checkQuery);
+
+		it("[invalid/orderDirInvalid.json] ORDER.dir not UP/DOWN", async function () {
+			const q = {
+				WHERE: {},
+				OPTIONS: {
+					COLUMNS: ["sections_dept"],
+					ORDER: { dir: "SIDEWAYS", keys: ["sections_dept"] },
+				},
+			};
+			await expect(facade.performQuery(q as any)).to.be.rejectedWith(InsightError);
+		});
+
+		it("[invalid/orderTypeInvalid.json] ORDER not string or object", async function () {
+			const q = {
+				WHERE: {},
+				OPTIONS: {
+					COLUMNS: ["sections_dept"],
+					ORDER: 123,
+				},
+			};
+			await expect(facade.performQuery(q as any)).to.be.rejectedWith(InsightError);
+		});
+
+		it("[invalid/orderEmptyKeys.json] ORDER.keys is empty", async function () {
+			const q = {
+				WHERE: {},
+				OPTIONS: {
+					COLUMNS: ["sections_dept"],
+					ORDER: { dir: "UP", keys: [] },
+				},
+			};
+			await expect(facade.performQuery(q as any)).to.be.rejectedWith(InsightError);
+		});
+
+		it("[invalid/unknownApplyToken.json] unknown APPLY token", async function () {
+			const q = {
+				WHERE: {},
+				OPTIONS: { COLUMNS: ["sections_dept", "x"], ORDER: "sections_dept" },
+				TRANSFORMATIONS: {
+					GROUP: ["sections_dept"],
+					APPLY: [{ x: { FOO: "sections_avg" } }], //
+				},
+			};
+			await expect(facade.performQuery(q as any)).to.be.rejectedWith(InsightError);
+		});
+
+		it("[invalid/unknownWhereOp.json] WHERE unknown operation", async function () {
+			const q = {
+				WHERE: { WEIRD: { sections_avg: 90 } },
+				OPTIONS: { COLUMNS: ["sections_dept", "sections_avg"] },
+			};
+			await expect(facade.performQuery(q as any)).to.be.rejectedWith(InsightError);
+		});
+
+		it("[invalid/keyNoUnderscore.json] key no _", async function () {
+			const q = {
+				WHERE: { GT: { sectionsavg: 90 } },
+				OPTIONS: { COLUMNS: ["sections_dept", "sections_avg"] },
+			};
+			await expect(facade.performQuery(q as any)).to.be.rejectedWith(InsightError);
+		});
 	});
 });

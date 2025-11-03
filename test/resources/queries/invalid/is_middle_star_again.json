@@ -1,0 +1,17 @@
+{
+	"title": "is_middle_star_again",
+	"input": {
+		"WHERE": {
+			"IS": {
+				"sections_dept": "c*sc"
+			}
+		},
+		"OPTIONS": {
+			"COLUMNS": [
+				"sections_dept"
+			]
+		}
+	},
+	"errorExpected": true,
+	"expected": "InsightError"
+}
