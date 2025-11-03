@@ -841,59 +841,6 @@ export default class InsightFacade implements IInsightFacade {
 		throw new InsightError("Invalid ORDER");
 	}
 
-	//# Generated with the assistance of ChatGPT
-	private evalWhere(where: any, row: SectionRow, datasetId: string): boolean {
-		if (!where || Object.keys(where).length === 0) return true;
-
-		const op = Object.keys(where)[0];
-		const val = where[op];
-
-		switch (op) {
-			case "AND":
-				if (!Array.isArray(val) || val.length === 0) throw new InsightError("AND needs non-empty array");
-				return val.every((c: any) => this.evalWhere(c, row, datasetId));
-
-			case "OR":
-				if (!Array.isArray(val) || val.length === 0) throw new InsightError("OR needs non-empty array");
-				return val.some((c: any) => this.evalWhere(c, row, datasetId));
-
-			case "NOT":
-				return !this.evalWhere(val, row, datasetId);
-
-			case "LT":
-			case "GT":
-			case "EQ": {
-				if (!this.isObject(val) || Object.keys(val).length !== 1) throw new InsightError(`${op} shape error`);
-				const key = Object.keys(val)[0];
-				const [ds, field] = this.splitKey(key);
-				if (ds !== datasetId) throw new InsightError("Mixed dataset ids");
-				if (this.sectionsFieldTypes[field] !== "number") throw new InsightError(`${op} requires numeric field`);
-				const cmpVal = val[key];
-				if (typeof cmpVal !== "number") throw new InsightError(`${op} value must be number`);
-				const cur = this.getFieldValue(row, field) as number;
-				if (op === "LT") return cur < cmpVal;
-				if (op === "GT") return cur > cmpVal;
-				return cur === cmpVal;
-			}
-
-			case "IS": {
-				if (!this.isObject(val) || Object.keys(val).length !== 1) throw new InsightError("IS shape error");
-				const key = Object.keys(val)[0];
-				const [ds, field] = this.splitKey(key);
-				if (ds !== datasetId) throw new InsightError("Mixed dataset ids");
-				if (this.sectionsFieldTypes[field] !== "string") throw new InsightError("IS requires string field");
-				const pattern = val[key];
-				if (typeof pattern !== "string") throw new InsightError("IS value must be string");
-				if (pattern.slice(1, -1).includes("*")) throw new InsightError("'*' only allowed at ends");
-				const str = String(this.getFieldValue(row, field));
-				return this.wildcardMatch(str, pattern);
-			}
-
-			default:
-				throw new InsightError(`Unknown WHERE operator '${op}'`);
-		}
-	}
-
 	private getFieldValue(row: SectionRow, field: string): string | number {
 		return (row as any)[field];
 	}

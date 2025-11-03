@@ -1,0 +1,17 @@
+{
+	"title": "is_value_not_string_2",
+	"input": {
+		"WHERE": {
+			"IS": {
+				"sections_dept": 123
+			}
+		},
+		"OPTIONS": {
+			"COLUMNS": [
+				"sections_dept"
+			]
+		}
+	},
+	"errorExpected": true,
+	"expected": "InsightError"
+}
