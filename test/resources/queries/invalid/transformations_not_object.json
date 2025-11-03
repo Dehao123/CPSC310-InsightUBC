@@ -1,0 +1,14 @@
+{
+	"title": "TRANSFORMATIONS not an object",
+	"input": {
+		"WHERE": {},
+		"OPTIONS": {
+			"COLUMNS": [
+				"sections_dept"
+			]
+		},
+		"TRANSFORMATIONS": "invalid"
+	},
+	"errorExpected": true,
+	"expected": "InsightError"
+}

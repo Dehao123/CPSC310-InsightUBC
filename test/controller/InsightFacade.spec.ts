@@ -454,6 +454,12 @@ describe("InsightFacade", function () {
 		// it("[valid/apply_count.json] APPLY COUNT", checkQuery);
 		it("[valid/gROUPBYDept.json] GROUP BY dept", checkQuery);
 		it("[valid/simpleRoomsQuery.json] Simple rooms query", checkQuery);
+		it("[valid/getAllRooms(NoFilter).json] Get all rooms (no filter)", checkQuery);
+		it("[valid/iS_AND_GT.json] IS_AND_GT", checkQuery);
+		it("[valid/complex_4.json] AND_IS_GT", checkQuery);
+		it("[valid/cOUNTOnStringField.json] COUNT on string field", checkQuery);
+		it("[valid/aPPLYMIN.json] APPLY MIN", checkQuery);
+		it("[valid/aPPLYSUM.json] APPLY SUM", checkQuery);
 
 		// ✅ 多键排序
 		// it("[valid/order_multi_keys.json] ORDER BY multiple keys", checkQuery);
@@ -461,5 +467,10 @@ describe("InsightFacade", function () {
 
 		// ✅ 错误情况
 		it("[invalid/duplicateApplykey.json] Duplicate applykey", checkQuery);
+		it("[invalid/transformations_not_object.json] TRANSFORMATIONS not an object", checkQuery);
+		it("[invalid/gROUPNotAnArray.json] GROUP not an array", checkQuery);
+		it("[invalid/aPPLYNotAnArray.json] APPLY not an array", checkQuery);
+		it("[invalid/aPPLYRULEHasMultipleKeys.json] APPLYRULE has multiple keys", checkQuery);
+		it("[invalid/over5000Result.json] over 5000 result", checkQuery);
 	});
 });
