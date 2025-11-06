@@ -237,6 +237,20 @@ export default class InsightFacade implements IInsightFacade {
 		return Array.from(this.datasets.values()).sort((a, b) => a.id.localeCompare(b.id));
 	}
 
+	// 是否是 dataset 字段（形如 "<id>_<field>"）
+	private isDatasetKey(k: any): k is string {
+		return typeof k === "string" && k.includes("_");
+	}
+
+	// 通用未知键校验
+	private assertNoUnknownKeys(obj: any, allowed: string[], ctx: string): void {
+		for (const k of Object.keys(obj)) {
+			if (!allowed.includes(k)) {
+				throw new InsightError(`${ctx} has unknown keys`);
+			}
+		}
+	}
+
 	public async performQuery(query: unknown): Promise<InsightResult[]> {
 		await this.ensureInitialized();
 
@@ -252,6 +266,9 @@ export default class InsightFacade implements IInsightFacade {
 		if (!options || !Array.isArray(options.COLUMNS) || options.COLUMNS.length === 0) {
 			throw new InsightError("OPTIONS.COLUMNS must be a non-empty array");
 		}
+		// OPTIONS 只允许 COLUMNS / ORDER
+		this.assertNoUnknownKeys(options, ["COLUMNS", "ORDER"], "OPTIONS");
+
 		const columnKeys: string[] = options.COLUMNS.slice();
 
 		// ---- 解析 ORDER（同时返回所有排序用到的 key，稍后用于 id 推断与校验）
@@ -269,30 +286,86 @@ export default class InsightFacade implements IInsightFacade {
 		let applyRules: Array<{ applykey: string; token: "MAX" | "MIN" | "AVG" | "SUM" | "COUNT"; key: string }> = [];
 		if (transf !== undefined) {
 			if (!this.isObject(transf)) throw new InsightError("TRANSFORMATIONS must be object");
-			if (!Array.isArray(transf.GROUP) || transf.GROUP.length === 0)
-				throw new InsightError("GROUP must be a non-empty array");
-			groupKeys = transf.GROUP.slice();
 
-			if (transf.APPLY !== undefined) {
-				if (!Array.isArray(transf.APPLY)) throw new InsightError("APPLY must be an array");
-				for (const rule of transf.APPLY) {
-					if (!this.isObject(rule) || Object.keys(rule).length !== 1) throw new InsightError("APPLYRULE shape error");
-					const applykey = Object.keys(rule)[0];
-					const inner = rule[applykey];
-					if (!this.isObject(inner) || Object.keys(inner).length !== 1)
-						throw new InsightError("APPLYRULE inner shape error");
-					const token = Object.keys(inner)[0] as any;
-					const key = inner[token];
-					applyRules.push({ applykey, token, key });
+			// 只允许 GROUP / APPLY
+			this.assertNoUnknownKeys(transf, ["GROUP", "APPLY"], "TRANSFORMATIONS");
+
+			// GROUP：非空数组，且每一项必须是 dataset key
+			if (!Array.isArray(transf.GROUP) || transf.GROUP.length === 0) {
+				throw new InsightError("GROUP must be a non-empty array");
+			}
+			groupKeys = transf.GROUP.slice();
+			for (const g of groupKeys) {
+				if (!this.isDatasetKey(g)) {
+					throw new InsightError("GROUP entries must be dataset keys");
 				}
-				const s = new Set(applyRules.map((r) => r.applykey));
-				if (s.size !== applyRules.length) throw new InsightError("Duplicate applykey");
 			}
 
-			// COLUMNS 只能来自 GROUP 的键或 applykey
-			const allowed = new Set<string>([...groupKeys, ...applyRules.map((r) => r.applykey)]);
+			// APPLY：允许空数组；每条规则形如 { applykey: { TOKEN: "<id>_<field>" } }
+			if (transf.APPLY !== undefined) {
+				if (!Array.isArray(transf.APPLY)) throw new InsightError("APPLY must be an array");
+
+				for (const rule of transf.APPLY) {
+					if (!this.isObject(rule) || Object.keys(rule).length !== 1) {
+						throw new InsightError("APPLYRULE shape error");
+					}
+					const applykey = Object.keys(rule)[0];
+
+					// applykey 语法：非空字符串、不能含下划线
+					if (typeof applykey !== "string" || applykey.trim().length === 0) {
+						throw new InsightError("applykey must be a non-empty string");
+					}
+					if (applykey.includes("_")) {
+						throw new InsightError("applykey must not contain underscore");
+					}
+
+					const inner = (rule as any)[applykey];
+					if (!this.isObject(inner) || Object.keys(inner).length !== 1) {
+						throw new InsightError("APPLYRULE inner shape error");
+					}
+					const token = Object.keys(inner)[0] as any;
+					const key = inner[token];
+
+					// token 必须在集合内
+					const allowedTokens = new Set(["MAX", "MIN", "AVG", "SUM", "COUNT"]);
+					if (!allowedTokens.has(token)) {
+						throw new InsightError("Unknown APPLY token");
+					}
+					// 引用字段必须是 dataset key
+					if (!this.isDatasetKey(key)) {
+						throw new InsightError("APPLY key must be a dataset key");
+					}
+
+					applyRules.push({ applykey, token, key });
+				}
+
+				// applykey 唯一
+				const s = new Set(applyRules.map((r) => r.applykey));
+				if (s.size !== applyRules.length) throw new InsightError("Duplicate applykey");
+
+				// applykey 不得与 GROUP 键重名
+				for (const r of applyRules) {
+					if (groupKeys.includes(r.applykey)) {
+						throw new InsightError("applykey must not duplicate a GROUP key");
+					}
+				}
+			}
+
+			// COLUMNS 只能来自 GROUP 键或 applykey
+			const allowedCols = new Set<string>([...groupKeys, ...applyRules.map((r) => r.applykey)]);
 			for (const c of columnKeys) {
-				if (!allowed.has(c)) throw new InsightError("COLUMNS must be subset of GROUP keys and applykeys");
+				if (!allowedCols.has(c)) {
+					throw new InsightError("COLUMNS must be subset of GROUP keys and applykeys");
+				}
+			}
+		}
+
+		// 无 TRANSFORMATIONS：COLUMNS 必须都是 dataset key
+		if (transf === undefined) {
+			for (const c of columnKeys) {
+				if (!this.isDatasetKey(c)) {
+					throw new InsightError("COLUMNS entries must be dataset keys when no TRANSFORMATIONS");
+				}
 			}
 		}
 
@@ -835,6 +908,10 @@ export default class InsightFacade implements IInsightFacade {
 			if (dir !== "UP" && dir !== "DOWN") throw new InsightError("ORDER.dir must be 'UP' or 'DOWN'");
 			if (!Array.isArray(order.keys) || order.keys.length === 0) {
 				throw new InsightError("ORDER.keys must be a non-empty array");
+			}
+			const s = new Set(order.keys);
+			if (s.size !== order.keys.length) {
+				throw new InsightError("ORDER.keys must not contain duplicates");
 			}
 			return order.keys.slice();
 		}
