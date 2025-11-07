@@ -16,6 +16,7 @@ const parse5 = require("parse5");
 
 let zip: any;
 
+// Section dataset row
 interface SectionRow {
 	uuid: string;
 	id: string;
@@ -29,12 +30,12 @@ interface SectionRow {
 	year: number;
 }
 
-// ====== C2: Rooms dataset row ======
+// Room dataset row
 interface RoomRow {
 	fullname: string;
 	shortname: string;
 	number: string;
-	name: string; // rooms_shortname + "_" + rooms_number
+	name: string;
 	address: string;
 	lat: number;
 	lon: number;
@@ -57,9 +58,10 @@ export default class InsightFacade implements IInsightFacade {
 	private dataRooms = new Map<string, RoomRow[]>();
 	private readonly initialized: Promise<void>;
 
+	//# Generated with the assistance of ChatGPT
 	private async geoLookup(address: string): Promise<{ lat?: number; lon?: number; error?: string } | undefined> {
 		const http = require("http");
-		const team = "project_team196"; // TODO: 改成你的 team 号
+		const team = "project_team196";
 		const encoded = encodeURIComponent(address);
 		const url = `http://cs310.students.cs.ubc.ca:11316/api/v1/${team}/${encoded}`;
 
@@ -131,7 +133,7 @@ export default class InsightFacade implements IInsightFacade {
 						if (!this.dataRooms.has(id)) this.dataRooms.set(id, rows);
 						if (!this.datasets.has(id)) this.datasets.set(id, { id, kind: InsightDatasetKind.Rooms, numRows });
 					} catch {}
-					continue; // 防止落到 sections 判断
+					continue;
 				}
 				if (!entry.endsWith(".sections.json")) {
 					continue;
@@ -159,6 +161,7 @@ export default class InsightFacade implements IInsightFacade {
 			}
 		} catch {}
 	}
+
 	private isFiniteInteger(x: any): x is number {
 		return this.isFiniteNumber(x) && Number.isInteger(x);
 	}
@@ -169,17 +172,18 @@ export default class InsightFacade implements IInsightFacade {
 		if (!this.isValidId(id)) throw new InsightError("Invalid id");
 		if (this.datasets.has(id)) throw new InsightError("Duplicate id");
 
-		// 选择持久化路径（按 kind）
+		// make persist path by kind
 		const persistPath = this.makePersistPathByKind(id, kind);
 		if (await fs.pathExists(persistPath)) throw new InsightError("Duplicate id on disk");
 
-		// 解压
+		// load
 		try {
 			zip = await JSZip.loadAsync(Buffer.from(content, "base64"));
 		} catch {
 			throw new InsightError("Invalid base64 zip");
 		}
 
+		// Sections
 		if (kind === InsightDatasetKind.Sections) {
 			const rows = await this.parseSectionsFromZip(zip); // 旧逻辑
 			if (rows.length === 0) throw new InsightError("No valid rows");
@@ -192,7 +196,7 @@ export default class InsightFacade implements IInsightFacade {
 			return Array.from(this.datasets.keys()).sort();
 		}
 
-		// ====== C2: Rooms 分支 ======
+		// Rooms
 		if (kind === InsightDatasetKind.Rooms) {
 			const rooms = await this.parseRoomsFromZipAndGeocode(zip); // 见 2.2 / 2.3
 			if (rooms.length === 0) throw new InsightError("No valid rows");
@@ -231,18 +235,16 @@ export default class InsightFacade implements IInsightFacade {
 		return id;
 	}
 
-	// ====== C1: listDatasets ======
 	public async listDatasets(): Promise<InsightDataset[]> {
 		await this.ensureInitialized();
 		return Array.from(this.datasets.values()).sort((a, b) => a.id.localeCompare(b.id));
 	}
 
-	// 是否是 dataset 字段（形如 "<id>_<field>"）
+	// Is dataset key（e.g. "<id>_<field>"）
 	private isDatasetKey(k: any): k is string {
 		return typeof k === "string" && k.includes("_");
 	}
 
-	// 通用未知键校验
 	private assertNoUnknownKeys(obj: any, allowed: string[], ctx: string): void {
 		for (const k of Object.keys(obj)) {
 			if (!allowed.includes(k)) {
@@ -266,12 +268,13 @@ export default class InsightFacade implements IInsightFacade {
 		if (!options || !Array.isArray(options.COLUMNS) || options.COLUMNS.length === 0) {
 			throw new InsightError("OPTIONS.COLUMNS must be a non-empty array");
 		}
-		// OPTIONS 只允许 COLUMNS / ORDER
+
+		// assert COLUMNS / ORDER OPTIONS
 		this.assertNoUnknownKeys(options, ["COLUMNS", "ORDER"], "OPTIONS");
 
 		const columnKeys: string[] = options.COLUMNS.slice();
 
-		// ---- 解析 ORDER（同时返回所有排序用到的 key，稍后用于 id 推断与校验）
+		// parse ORDER
 		const orderKeys: string[] = this.extractOrderKeys(options.ORDER);
 		for (const k of orderKeys) {
 			if (!columnKeys.includes(k)) throw new InsightError("ORDER must use keys from COLUMNS");
@@ -281,13 +284,13 @@ export default class InsightFacade implements IInsightFacade {
 			this.assertValidFilter(where);
 		}
 
-		// ---- 解析 TRANSFORMATIONS
+		// parse TRANSFORMATIONS
 		let groupKeys: string[] = [];
 		let applyRules: Array<{ applykey: string; token: "MAX" | "MIN" | "AVG" | "SUM" | "COUNT"; key: string }> = [];
 		if (transf !== undefined) {
 			if (!this.isObject(transf)) throw new InsightError("TRANSFORMATIONS must be object");
 
-			// 只允许 GROUP / APPLY
+			// assert GROUP / APPLY
 			this.assertNoUnknownKeys(transf, ["GROUP", "APPLY"], "TRANSFORMATIONS");
 
 			// GROUP：非空数组，且每一项必须是 dataset key
@@ -301,7 +304,7 @@ export default class InsightFacade implements IInsightFacade {
 				}
 			}
 
-			// APPLY：允许空数组；每条规则形如 { applykey: { TOKEN: "<id>_<field>" } }
+			//# Generated with the assistance of ChatGPT
 			if (transf.APPLY !== undefined) {
 				if (!Array.isArray(transf.APPLY)) throw new InsightError("APPLY must be an array");
 
@@ -311,7 +314,6 @@ export default class InsightFacade implements IInsightFacade {
 					}
 					const applykey = Object.keys(rule)[0];
 
-					// applykey 语法：非空字符串、不能含下划线
 					if (typeof applykey !== "string" || applykey.trim().length === 0) {
 						throw new InsightError("applykey must be a non-empty string");
 					}
@@ -326,12 +328,11 @@ export default class InsightFacade implements IInsightFacade {
 					const token = Object.keys(inner)[0] as any;
 					const key = inner[token];
 
-					// token 必须在集合内
 					const allowedTokens = new Set(["MAX", "MIN", "AVG", "SUM", "COUNT"]);
 					if (!allowedTokens.has(token)) {
 						throw new InsightError("Unknown APPLY token");
 					}
-					// 引用字段必须是 dataset key
+
 					if (!this.isDatasetKey(key)) {
 						throw new InsightError("APPLY key must be a dataset key");
 					}
@@ -339,11 +340,9 @@ export default class InsightFacade implements IInsightFacade {
 					applyRules.push({ applykey, token, key });
 				}
 
-				// applykey 唯一
 				const s = new Set(applyRules.map((r) => r.applykey));
 				if (s.size !== applyRules.length) throw new InsightError("Duplicate applykey");
 
-				// applykey 不得与 GROUP 键重名
 				for (const r of applyRules) {
 					if (groupKeys.includes(r.applykey)) {
 						throw new InsightError("applykey must not duplicate a GROUP key");
@@ -351,7 +350,6 @@ export default class InsightFacade implements IInsightFacade {
 				}
 			}
 
-			// COLUMNS 只能来自 GROUP 键或 applykey
 			const allowedCols = new Set<string>([...groupKeys, ...applyRules.map((r) => r.applykey)]);
 			for (const c of columnKeys) {
 				if (!allowedCols.has(c)) {
@@ -360,7 +358,6 @@ export default class InsightFacade implements IInsightFacade {
 			}
 		}
 
-		// 无 TRANSFORMATIONS：COLUMNS 必须都是 dataset key
 		if (transf === undefined) {
 			for (const c of columnKeys) {
 				if (!this.isDatasetKey(c)) {
@@ -369,16 +366,16 @@ export default class InsightFacade implements IInsightFacade {
 			}
 		}
 
-		// ---- 采集所有“带下划线的真实数据键”来推断 datasetId（避免把 applykey 算进去）
+		// Collect all the "underlined real data keys" to infer the datasetId
 		const whereKeys = this.collectWhereKeys(where);
 		const isDatasetKey = (k: string) => typeof k === "string" && k.includes("_");
 
 		const idKeys: string[] = [
 			...whereKeys,
-			...groupKeys, // groupKeys 都是 dataset keys
-			...applyRules.map((r) => r.key), // APPLY 里引用的 dataset key
-			...orderKeys.filter(isDatasetKey), // ORDER 里如果是 dataset key 也纳入
-			...(transf ? [] : columnKeys.filter(isDatasetKey)), // 无 TRANSFORMATIONS 时，COLUMNS 也是 dataset keys
+			...groupKeys,
+			...applyRules.map((r) => r.key),
+			...orderKeys.filter(isDatasetKey),
+			...(transf ? [] : columnKeys.filter(isDatasetKey)),
 		];
 
 		const datasetId = this.validateAndGetDatasetId(idKeys);
@@ -390,9 +387,9 @@ export default class InsightFacade implements IInsightFacade {
 		const allRows: any[] | undefined = isRooms ? this.dataRooms.get(datasetId) : this.data.get(datasetId);
 		if (!allRows) throw new InsightError(`Dataset '${datasetId}' not added`);
 
-		// ---- 对所有真正的 dataset 字段做统一校验
+		// assert dataset valid
 		const assertValidKey = (full: string, expected?: "number" | "string") => {
-			if (!isDatasetKey(full)) return; // 跳过 applykey
+			if (!isDatasetKey(full)) return;
 			const [ds, f] = this.splitKey(full);
 			if (ds !== datasetId) throw new InsightError("Mixed dataset ids");
 			if (!(f in fieldTable)) throw new InsightError(`Unknown field '${f}'`);
@@ -406,13 +403,12 @@ export default class InsightFacade implements IInsightFacade {
 			...(transf ? [] : columnKeys.filter(isDatasetKey)),
 		].forEach((k) => assertValidKey(k));
 
-		// ---- WHERE 过滤（对 rooms/sections 通用）
+		// WHERE filter
 		const filtered = allRows.filter((r) => this.evalWhereGeneric(where, r, datasetId, fieldTable));
 
 		let results: InsightResult[] = [];
 
 		if (transf === undefined) {
-			// 无 GROUP/APPLY：直接投影
 			results = filtered.map((row) => {
 				const out: InsightResult = {};
 				for (const col of columnKeys) {
@@ -422,7 +418,6 @@ export default class InsightFacade implements IInsightFacade {
 				return out;
 			});
 		} else {
-			// 分组
 			const groupMap = new Map<string, any[]>();
 			const makeGroupKey = (row: any) => {
 				const kv: any = {};
@@ -438,7 +433,6 @@ export default class InsightFacade implements IInsightFacade {
 				groupMap.get(k)!.push(r);
 			}
 
-			// 聚合
 			const Decimal = require("decimal.js");
 			const compute = (token: string, key: string, rs: any[]) => {
 				const [, f] = this.splitKey(key);
@@ -468,7 +462,6 @@ export default class InsightFacade implements IInsightFacade {
 				const row: any = { ...base };
 				for (const r of applyRules) row[r.applykey] = compute(r.token, r.key, rs);
 
-				// 投影
 				const proj: InsightResult = {};
 				for (const c of columnKeys) proj[c] = row[c];
 				out.push(proj);
@@ -478,7 +471,7 @@ export default class InsightFacade implements IInsightFacade {
 
 		if (results.length > 5000) throw new ResultTooLargeError("Result too large");
 
-		// ---- 排序（字符串 或 {dir, keys}）
+		// sort (string or {dir, keys})
 		if (options.ORDER !== undefined) {
 			const ord = options.ORDER;
 			if (typeof ord === "string") {
@@ -639,7 +632,7 @@ export default class InsightFacade implements IInsightFacade {
 		return rows;
 	}
 
-	// ====== C2: HTML 解析（parse5） ======
+	// HTML parse（parse5）
 	private findAll(node: any, pred: (n: any) => boolean, out: any[] = []): any[] {
 		if (!node) return out;
 		if (pred(node)) out.push(node);
@@ -663,14 +656,11 @@ export default class InsightFacade implements IInsightFacade {
 		return s.trim();
 	}
 
-	// 根据包含某个 <td class="..."> 的 table 锁定表
 	private findTableByTdClass(doc: any, classSubstr: string): any | undefined {
 		const tds = this.findAll(doc, (n) => n.nodeName === "td" && (this.getAttr(n, "class") ?? "").includes(classSubstr));
 		if (tds.length === 0) return undefined;
-		// 向上找最近的 table
 		const parents: any[] = [];
 		const parentMap = new Map<any, any>();
-		// 建一遍 parent 指针（parse5 不带 parent）
 		const buildParent = (n: any) => {
 			if (!n?.childNodes) return;
 			for (const c of n.childNodes) {
@@ -678,7 +668,6 @@ export default class InsightFacade implements IInsightFacade {
 				buildParent(c);
 			}
 		};
-		// 需要已知 doc 的树根
 		buildParent(doc);
 
 		const tableOf = (n: any): any | undefined => {
@@ -697,20 +686,21 @@ export default class InsightFacade implements IInsightFacade {
 		return undefined;
 	}
 
+	//# Generated with the assistance of ChatGPT
 	private async parseRoomsFromZipAndGeocode(zip: any): Promise<RoomRow[]> {
-		// 1) 读取根目录 index.htm
+		// Read the index.htm file in the root directory
 		const indexFile = zip.file("index.htm");
 		if (!indexFile) return [];
 		const indexHtml = await indexFile.async("string");
 		const indexDoc = parse5.parse(indexHtml);
 
-		// 2) 找到“建筑列表表格”：td class 至少能包含 address 或 title 的那张
+		// Locate the "Building List Table"
 		const bldgTable =
 			this.findTableByTdClass(indexDoc, "views-field-field-building-address") ??
 			this.findTableByTdClass(indexDoc, "views-field-title");
 		if (!bldgTable) return [];
 
-		// 3) 抽取 行：shortname/fullname/address/楼文件 href
+		// Extraction Items: shortname/fullname/address/Building file href
 		const buildings: Array<{ shortname: string; fullname: string; address: string; href: string }> = [];
 		const trs = this.findAll(bldgTable, (n) => n.nodeName === "tr");
 		for (const tr of trs) {
@@ -744,7 +734,7 @@ export default class InsightFacade implements IInsightFacade {
 			}
 		}
 
-		// 4) 读取每栋楼的房间表，先临时不加 lat/lon
+		// Read the room tables of each building, temporarily not adding lat/lon first
 		type TempRoom = Omit<RoomRow, "lat" | "lon">;
 		const byBuilding = new Map<
 			string,
@@ -753,7 +743,7 @@ export default class InsightFacade implements IInsightFacade {
 
 		for (const b of buildings) {
 			const file = zip.file(b.href);
-			if (!file) continue; // 楼文件可能不存在
+			if (!file) continue;
 			const html = await file.async("string");
 			const doc = parse5.parse(html);
 			const roomTable =
@@ -805,13 +795,12 @@ export default class InsightFacade implements IInsightFacade {
 			}
 		}
 
-		// 5) 对“有有效房间”的建筑打地理编码，并补到每个房间
+		// Geocode the buildings that have "available rooms" and add them to each individual room.
 		const out: RoomRow[] = [];
 		for (const [shortname, pack] of byBuilding) {
 			if (pack.rooms.length === 0) continue;
 			const geo = await this.geoLookup(pack.meta.address); // 2.3
 			if (!geo || typeof geo.lat !== "number" || typeof geo.lon !== "number") {
-				// 该楼所有房间作废（spec：room 的有效性包含地理编码成功）
 				continue;
 			}
 			for (const r of pack.rooms) {
@@ -825,6 +814,7 @@ export default class InsightFacade implements IInsightFacade {
 		return x !== null && typeof x === "object" && !Array.isArray(x);
 	}
 
+	// Sections field types
 	private readonly sectionsFieldTypes: Record<string, "number" | "string"> = {
 		dept: "string",
 		id: "string",
@@ -838,7 +828,7 @@ export default class InsightFacade implements IInsightFacade {
 		year: "number",
 	};
 
-	// ====== C2: rooms 字段表 ======
+	// Rooms field types
 	private readonly roomsFieldTypes: Record<string, "number" | "string"> = {
 		fullname: "string",
 		shortname: "string",
