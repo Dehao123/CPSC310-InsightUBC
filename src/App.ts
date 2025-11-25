@@ -5,7 +5,8 @@ const port = 4321; // 你的服务器端口，和前端 baseUrl 里的 4321 对�
 
 const server = new Server(port);
 
-server.start()
+server
+	.start()
 	.then(() => {
 		console.log(`Server started on port ${port}`);
 	})

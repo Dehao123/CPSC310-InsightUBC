@@ -410,10 +410,13 @@
 		<p class="card-desc">
 			输入要删除的 dataset id。通常可以先在「List Datasets」里确认名称，再执行删除。
 		</p>
-		<label for="remove-dataset-id">Dataset ID to remove</label>
-		<input type="text" id="remove-dataset-id" placeholder="sections" />
+		<label for="remove-dataset-select">Dataset ID to remove</label>
+		<select id="remove-dataset-select">
+			<option value="">-- Select dataset --</option>
+		</select>
 		<button id="remove-btn">Remove Dataset</button>
 		<div id="remove-status" class="status"></div>
+
 	</section>
 
 	<!-- 4. 经典查询 -->
@@ -428,10 +431,13 @@
 
 		<div class="row">
 			<div>
-				<label for="query-dataset-id">
+				<label for="query-dataset-select">
 					Dataset ID（要和你 addDataset 时保持一致）
 				</label>
-				<input type="text" id="query-dataset-id" placeholder="sections" />
+				<select id="query-dataset-select">
+					<option value="">-- Select dataset --</option>
+				</select>
+
 
 				<label for="query-template-select">Query Template</label>
 				<select id="query-template-select">

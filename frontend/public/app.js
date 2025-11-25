@@ -53,6 +53,42 @@ function renderTable(containerId, rows) {
 	container.appendChild(table);
 }
 
+function updateDatasetDropdowns(datasets) {
+	const removeSelect = document.getElementById("remove-dataset-select");
+	const querySelect = document.getElementById("query-dataset-select");
+	if (!removeSelect || !querySelect) {
+		return;
+	}
+
+	const selects = [removeSelect, querySelect];
+
+	selects.forEach((sel) => {
+		const previous = sel.value; // 记住之前选中的 id
+		sel.innerHTML = "";
+
+		const placeholder = document.createElement("option");
+		placeholder.value = "";
+		placeholder.disabled = datasets.length > 0;
+		placeholder.selected = true;
+		placeholder.textContent = datasets.length > 0
+			? "-- Select dataset --"
+			: "No datasets";
+		sel.appendChild(placeholder);
+
+		datasets.forEach((ds) => {
+			const opt = document.createElement("option");
+			opt.value = ds.id;
+			opt.textContent = `${ds.id} (${ds.kind}, ${ds.numRows} rows)`;
+			if (ds.id === previous) {
+				placeholder.selected = false;
+				opt.selected = true;
+			}
+			sel.appendChild(opt);
+		});
+	});
+}
+
+
 // ========= 1. 上传 dataset =========
 async function uploadDataset() {
 	const idInput = document.getElementById("upload-dataset-id");
@@ -83,6 +119,8 @@ async function uploadDataset() {
 
 		if (res.ok) {
 			setStatus("upload-status", `Upload success. Datasets: ${JSON.stringify(json.result)}`);
+			// ✅ 上传成功后，自动刷新 List Datasets
+			await listDatasets();
 		} else {
 			setStatus(
 				"upload-status",
@@ -107,7 +145,11 @@ async function listDatasets() {
 
 		if (res.ok) {
 			setStatus("list-status", `Loaded ${json.result?.length || 0} dataset(s).`);
-			renderTable("datasets-table-container", json.result || []);
+			const datasets = json.result || [];
+			renderTable("datasets-table-container", datasets);
+
+			// ✅ 用新的数据更新两个下拉菜单
+			updateDatasetDropdowns(datasets);
 		} else {
 			setStatus("list-status", `Error: ${json.error || res.statusText}`, true);
 		}
@@ -119,29 +161,41 @@ async function listDatasets() {
 
 // ========= 3. 删除 dataset =========
 async function removeDataset() {
-	const id = (document.getElementById("remove-dataset-id").value || "").trim();
+	const select = document.getElementById("remove-dataset-select");
+
+	// 从下拉框里拿 value（就是纯 id，比如 "333"）
+	const id = (select && select.value) ? select.value.trim() : "";
+
 	if (!id) {
-		setStatus("remove-status", "Please enter dataset id to remove.", true);
+		setStatus("remove-status", "Please choose a dataset to remove.", true);
 		return;
 	}
 
 	setStatus("remove-status", "Removing...");
 	try {
-		const res = await fetch(`${baseUrl}/api/v1/datasets/${encodeURIComponent(id)}`, {
-			method: "DELETE"
-		});
+		const res = await fetch(
+			`${baseUrl}/api/v1/datasets/${encodeURIComponent(id)}`,
+			{ method: "DELETE" }
+		);
+
 		const json = await res.json().catch(() => ({}));
 
 		if (res.ok) {
 			setStatus("remove-status", `Removed dataset: ${json.result}`);
+			await listDatasets(); // ✅ 删除成功后刷新列表和下拉菜单
 		} else {
-			setStatus("remove-status", `Error: ${json.error || res.statusText}`, true);
+			setStatus(
+				"remove-status",
+				`Error: ${json.error || res.statusText}`,
+				true
+			);
 		}
 	} catch (e) {
 		console.error(e);
 		setStatus("remove-status", "Network error while removing dataset.", true);
 	}
 }
+
 
 // ========= 4. 经典查询模板 =========
 
@@ -210,9 +264,11 @@ function buildQuery_avgRange(datasetId, minAvg, maxAvg) {
 }
 
 async function runQuery() {
-	const datasetId = (document.getElementById("query-dataset-id").value || "").trim();
+	const dsSelect = document.getElementById("query-dataset-select");
+	const datasetId = (dsSelect && dsSelect.value) ? dsSelect.value.trim() : "";
+
 	if (!datasetId) {
-		setStatus("query-status", "Please enter dataset id (e.g., sections).", true);
+		setStatus("query-status", "Please select a dataset id.", true);
 		return;
 	}
 
