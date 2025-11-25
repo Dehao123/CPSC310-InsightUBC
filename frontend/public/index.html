@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<title>Section Insights UI</title>
+	<style>
+		body {
+			font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+			margin: 0;
+			padding: 0 16px 40px;
+			background: #f5f5f5;
+		}
+
+		h1, h2 {
+			margin-top: 24px;
+		}
+
+		section {
+			background: #ffffff;
+			padding: 16px;
+			margin-top: 16px;
+			border-radius: 8px;
+			box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+		}
+
+		label {
+			display: block;
+			margin: 6px 0 2px;
+			font-size: 0.9rem;
+		}
+
+		input[type="text"],
+		input[type="number"],
+		select {
+			padding: 4px 8px;
+			font-size: 0.9rem;
+			width: 220px;
+			max-width: 100%;
+		}
+
+		input[type="file"] {
+			margin-top: 4px;
+		}
+
+		button {
+			margin-top: 8px;
+			padding: 6px 12px;
+			font-size: 0.9rem;
+			border-radius: 4px;
+			border: 1px solid #1976d2;
+			background: #1976d2;
+			color: white;
+			cursor: pointer;
+		}
+
+		button:disabled {
+			opacity: 0.5;
+			cursor: default;
+		}
+
+		.row {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 16px;
+		}
+
+		.row > div {
+			min-width: 240px;
+		}
+
+		.status {
+			margin-top: 6px;
+			font-size: 0.85rem;
+			color: #555;
+		}
+
+		table {
+			border-collapse: collapse;
+			margin-top: 8px;
+			width: 100%;
+			background: white;
+		}
+
+		th, td {
+			border: 1px solid #ddd;
+			padding: 4px 8px;
+			font-size: 0.85rem;
+		}
+
+		th {
+			background: #eee;
+		}
+
+		pre {
+			background: #272822;
+			color: #f8f8f2;
+			padding: 8px;
+			font-size: 0.8rem;
+			max-height: 260px;
+			overflow: auto;
+			border-radius: 6px;
+		}
+	</style>
+</head>
+<body>
+<h1>Section Insights – Frontend</h1>
+<p>
+	后端默认跑在 <code>http://localhost:4321</code>。
+	你可以用这个页面完成：添加 / 列出 / 删除 datasets，以及几个经典查询。
+</p>
+
+<!-- 1. 上传 dataset -->
+<section>
+	<h2>1. Add Dataset (sections.zip)</h2>
+	<div class="row">
+		<div>
+			<label for="upload-dataset-id">Dataset ID（例如：<code>sections</code>）</label>
+			<input type="text" id="upload-dataset-id" placeholder="sections" />
+
+			<label for="upload-dataset-file">Zip File</label>
+			<input type="file" id="upload-dataset-file" accept=".zip" />
+
+			<button id="upload-btn">Upload Dataset</button>
+			<div id="upload-status" class="status"></div>
+		</div>
+	</div>
+</section>
+
+<!-- 2. 列出 datasets -->
+<section>
+	<h2>2. List Datasets</h2>
+	<button id="list-btn">Refresh Dataset List</button>
+	<div id="list-status" class="status"></div>
+	<div id="datasets-table-container"></div>
+</section>
+
+<!-- 3. 删除 dataset -->
+<section>
+	<h2>3. Remove Dataset</h2>
+	<label for="remove-dataset-id">Dataset ID to remove</label>
+	<input type="text" id="remove-dataset-id" placeholder="sections" />
+	<button id="remove-btn">Remove Dataset</button>
+	<div id="remove-status" class="status"></div>
+</section>
+
+<!-- 4. 经典查询 -->
+<section>
+	<h2>4. Section Insights Queries</h2>
+
+	<div class="row">
+		<div>
+			<label for="query-dataset-id">
+				Dataset ID（必须和你 addDataset 时的一致，比如 <code>sections</code>）
+			</label>
+			<input type="text" id="query-dataset-id" placeholder="sections" />
+
+			<label for="query-template-select">Query Template</label>
+			<select id="query-template-select">
+				<option value="avgByInstructor">
+					① 某院系 + 课程号 → 按 instructor 聚合平均分
+				</option>
+				<option value="topCoursesByAvg">
+					② 某院系 → 按课程号聚合平均分（前端截取前 N 门）
+				</option>
+				<option value="avgRange">
+					③ 按平均分区间筛选所有 sections
+				</option>
+			</select>
+		</div>
+
+		<div>
+			<strong>Template Parameters</strong>
+
+			<label for="param-dept">
+				Dept（用于模板 ① / ②，例如 <code>cpsc</code>）
+			</label>
+			<input type="text" id="param-dept" placeholder="cpsc" />
+
+			<label for="param-course-id">
+				Course ID（仅模板 ① 使用，例如 <code>310</code>）
+			</label>
+			<input type="text" id="param-course-id" placeholder="310" />
+
+			<label for="param-top-n">
+				Top N（仅模板 ②，前端截取前 N 行）
+			</label>
+			<input type="number" id="param-top-n" min="1" value="5" />
+
+			<label for="param-min-avg">
+				Min Avg（仅模板 ③，例如 <code>70</code>）
+			</label>
+			<input type="number" id="param-min-avg" />
+
+			<label for="param-max-avg">
+				Max Avg（仅模板 ③，例如 <code>90</code>）
+			</label>
+			<input type="number" id="param-max-avg" />
+		</div>
+	</div>
+
+	<button id="run-query-btn">Run Query</button>
+	<div id="query-status" class="status"></div>
+	<div id="query-table-container"></div>
+
+	<h3>Raw JSON Result</h3>
+	<pre id="query-json-output">// result will show here</pre>
+</section>
+
+<script src="app.js"></script>
+</body>
+</html>
