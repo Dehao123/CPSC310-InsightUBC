@@ -334,6 +334,46 @@
 				font-size: 1.35rem;
 			}
 		}
+
+		.query-mode-toggle {
+			margin: 10px 0 8px;
+			display: inline-flex;
+			gap: 8px;
+		}
+
+		.query-mode-btn {
+			background: transparent;
+			border-radius: 999px;
+			border: 1px solid rgba(148, 163, 184, 0.5);
+			color: var(--text-muted);
+			padding: 5px 12px;
+			font-size: 0.8rem;
+			box-shadow: none;
+		}
+
+		.query-mode-btn::after {
+			/* 覆盖通用 button 的箭头 */
+			content: "";
+		}
+
+		.query-mode-btn.active {
+			background: var(--accent-soft);
+			color: var(--accent);
+			border-color: var(--accent);
+		}
+
+		th.sortable {
+			cursor: pointer;
+			user-select: none;
+		}
+
+		th.sortable .sort-arrow {
+			font-size: 0.7rem;
+			margin-left: 4px;
+			opacity: 0.8;
+		}
+
+
 	</style>
 </head>
 <body>
@@ -425,61 +465,73 @@
 			<h2>4. Section Insights Queries <span class="pill">performQuery</span></h2>
 		</div>
 		<p class="card-desc">
-			使用几个预设的查询模板快速探索 sections 数据：按照 instructor 聚合、按课程平均分排序，
-			或者筛选指定平均分区间内的 section。
+			这里把查询分成两类：<strong>Simple Query</strong> 用来做非常常见的查询，
+			比如某个院系里哪些课程平均分最高；<strong>Advanced Query</strong> 可以加上人数和分数的条件。
 		</p>
 
-		<div class="row">
-			<div>
-				<label for="query-dataset-select">
-					Dataset ID（要和你 addDataset 时保持一致）
-				</label>
-				<select id="query-dataset-select">
-					<option value="">-- Select dataset --</option>
-				</select>
+		<!-- 统一的 dataset 选择，下方简单/复杂查询都会用到 -->
+		<label for="query-dataset-select">
+			Dataset ID（要和你 addDataset 时保持一致）
+		</label>
+		<select id="query-dataset-select">
+			<option value="">-- Select dataset --</option>
+		</select>
 
+		<!-- 模式切换按钮 -->
+		<div class="query-mode-toggle">
+			<button type="button" id="simple-query-btn" class="query-mode-btn active">
+				Simple Query
+			</button>
+			<button type="button" id="advanced-query-btn" class="query-mode-btn">
+				Advanced Query
+			</button>
+		</div>
 
-				<label for="query-template-select">Query Template</label>
-				<select id="query-template-select">
-					<option value="avgByInstructor">
-						① 某院系 + 课程号 → 按 instructor 聚合平均分
-					</option>
-					<option value="topCoursesByAvg">
-						② 某院系 → 按课程号聚合平均分（前端截取前 N 门）
-					</option>
-					<option value="avgRange">
-						③ 按平均分区间筛选所有 sections
-					</option>
-				</select>
+		<!-- Simple Query 面板 -->
+		<div id="simple-query-panel">
+			<p class="card-desc">
+				Simple Query：选一个院系（比如 <code>cpsc</code>），按课程号聚合平均分，
+				并按平均分从高到低排序。前端可以只展示前 N 门课。
+			</p>
+			<div class="row">
+				<div>
+					<label for="simple-dept">
+						Dept（例如 <code>cpsc</code>）
+					</label>
+					<input type="text" id="simple-dept" placeholder="cpsc" />
+
+					<label for="simple-top-n">
+						Top N（只显示前 N 门课）
+					</label>
+					<input type="number" id="simple-top-n" min="1" value="5" />
+				</div>
 			</div>
+		</div>
 
-			<div>
-				<strong style="font-size:0.82rem; color:var(--text-main);">Template Parameters</strong>
+		<!-- Advanced Query 面板 -->
+		<div id="advanced-query-panel" style="display:none;">
+			<p class="card-desc">
+				Advanced Query：在指定院系里，查找
+				<strong>通过人数</strong>（pass）大于某个值，并且
+				<strong>平均分</strong> 大于某个值的 section。
+			</p>
+			<div class="row">
+				<div>
+					<label for="adv-dept">
+						Dept（例如 <code>cpsc</code>）
+					</label>
+					<input type="text" id="adv-dept" placeholder="cpsc" />
 
-				<label for="param-dept">
-					Dept（模板 ① / ②，例如 <code>cpsc</code>）
-				</label>
-				<input type="text" id="param-dept" placeholder="cpsc" />
+					<label for="adv-min-pass">
+						Min Pass（人数至少多少人，例如 <code>50</code>）
+					</label>
+					<input type="number" id="adv-min-pass" value="50" />
 
-				<label for="param-course-id">
-					Course ID（仅模板 ①，例如 <code>310</code>）
-				</label>
-				<input type="text" id="param-course-id" placeholder="310" />
-
-				<label for="param-top-n">
-					Top N（仅模板 ②，前端截取前 N 行）
-				</label>
-				<input type="number" id="param-top-n" min="1" value="5" />
-
-				<label for="param-min-avg">
-					Min Avg（仅模板 ③，例如 <code>70</code>）
-				</label>
-				<input type="number" id="param-min-avg" />
-
-				<label for="param-max-avg">
-					Max Avg（仅模板 ③，例如 <code>90</code>）
-				</label>
-				<input type="number" id="param-max-avg" />
+					<label for="adv-min-avg">
+						Min Avg（平均分至少多少，例如 <code>80</code>）
+					</label>
+					<input type="number" id="adv-min-avg" value="80" />
+				</div>
 			</div>
 		</div>
 
@@ -490,6 +542,7 @@
 		<h3 style="margin-top: 12px; font-size: 0.9rem;">Raw JSON Result</h3>
 		<pre id="query-json-output">// result will show here</pre>
 	</section>
+
 </main>
 
 <script src="app.js"></script>

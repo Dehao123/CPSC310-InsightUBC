@@ -4,6 +4,9 @@
 // 就走完整 URL。如果你以后把前端也挂在 4321 端口下，
 // 可以把 baseUrl 改成空字符串 ""。
 const baseUrl = "http://localhost:4321";
+let simpleQueryRows = [];
+let simpleSortDirection = "DESC"; // 初始和后端一样：按 avg 从高到低
+let simpleSortKey = "avgMark";     // 当前按哪一列排序
 
 // ========= 工具函数 =========
 function setStatus(id, message, isError = false) {
@@ -13,7 +16,7 @@ function setStatus(id, message, isError = false) {
 	el.style.color = isError ? "#c62828" : "#555";
 }
 
-function renderTable(containerId, rows) {
+function renderAdvancedQueryTable(containerId, rows) {
 	const container = document.getElementById(containerId);
 	container.innerHTML = "";
 
@@ -52,6 +55,115 @@ function renderTable(containerId, rows) {
 	table.appendChild(tbody);
 	container.appendChild(table);
 }
+
+
+// ========= simple query 专用表格渲染（带可点击排序列） =========
+function renderSimpleQueryTable(containerId, rows) {
+	const container = document.getElementById(containerId);
+	container.innerHTML = "";
+
+	if (!rows || rows.length === 0) {
+		container.textContent = "No results.";
+		simpleQueryRows = [];
+		return;
+	}
+
+	// 存一份全局，方便排序后再次渲染
+	simpleQueryRows = rows.slice();
+
+	const table = document.createElement("table");
+	const thead = document.createElement("thead");
+	const tbody = document.createElement("tbody");
+
+	const keys = Object.keys(rows[0]);
+
+	// 哪些列可排序：sections_id / avgMark
+	const sortableKeys = new Set(["sections_id", "avgMark"]);
+
+	// 表头
+	const headerRow = document.createElement("tr");
+	keys.forEach((key) => {
+		const th = document.createElement("th");
+
+		if (sortableKeys.has(key)) {
+			th.classList.add("sortable");
+			th.dataset.key = key;
+
+			const labelSpan = document.createElement("span");
+			labelSpan.textContent = key;
+
+			const arrowSpan = document.createElement("span");
+			arrowSpan.className = "sort-arrow";
+
+			// 当前正在按哪一列排，就显示 ▲ / ▼，否则用一个淡淡的双箭头
+			if (key === simpleSortKey) {
+				arrowSpan.textContent =
+					simpleSortDirection === "ASC" ? "▲" : "▼";
+			} else {
+				arrowSpan.textContent = "↕";
+				arrowSpan.style.opacity = "0.4";
+			}
+
+			th.appendChild(labelSpan);
+			th.appendChild(arrowSpan);
+
+			// 点击切换排序
+			th.addEventListener("click", () => {
+				if (simpleSortKey === key) {
+					// 再点同一列 → 翻转方向
+					simpleSortDirection =
+						simpleSortDirection === "ASC" ? "DESC" : "ASC";
+				} else {
+					// 换到另一列 → 默认升序（你想默认降序也可以）
+					simpleSortKey = key;
+					simpleSortDirection = "ASC";
+				}
+
+				simpleQueryRows.sort((a, b) => {
+					const av = Number(a[simpleSortKey]);
+					const bv = Number(b[simpleSortKey]);
+
+					// 优先按数字排，如果不是数字再按字符串排
+					if (!Number.isNaN(av) && !Number.isNaN(bv)) {
+						return simpleSortDirection === "ASC"
+							? av - bv
+							: bv - av;
+					} else {
+						const as = String(a[simpleSortKey]);
+						const bs = String(b[simpleSortKey]);
+						return simpleSortDirection === "ASC"
+							? as.localeCompare(bs)
+							: bs.localeCompare(as);
+					}
+				});
+
+				// 用新的顺序重新渲染
+				renderSimpleQueryTable(containerId, simpleQueryRows);
+			});
+		} else {
+			th.textContent = key;
+		}
+
+		headerRow.appendChild(th);
+	});
+	thead.appendChild(headerRow);
+
+	// 数据
+	rows.forEach((row) => {
+		const tr = document.createElement("tr");
+		keys.forEach((key) => {
+			const td = document.createElement("td");
+			td.textContent = row[key];
+			tr.appendChild(td);
+		});
+		tbody.appendChild(tr);
+	});
+
+	table.appendChild(thead);
+	table.appendChild(tbody);
+	container.appendChild(table);
+}
+
 
 function updateDatasetDropdowns(datasets) {
 	const removeSelect = document.getElementById("remove-dataset-select");
@@ -146,7 +258,7 @@ async function listDatasets() {
 		if (res.ok) {
 			setStatus("list-status", `Loaded ${json.result?.length || 0} dataset(s).`);
 			const datasets = json.result || [];
-			renderTable("datasets-table-container", datasets);
+			renderAdvancedQueryTable("datasets-table-container", datasets);
 
 			// ✅ 用新的数据更新两个下拉菜单
 			updateDatasetDropdowns(datasets);
@@ -197,35 +309,10 @@ async function removeDataset() {
 }
 
 
-// ========= 4. 经典查询模板 =========
+// ========= 4. 查询（Simple / Advanced） =========
 
-// ① 某院系 + 课程号 → 按 instructor 聚合平均分
-function buildQuery_avgByInstructor(datasetId, dept, courseId) {
-	const p = `${datasetId}_`;
-	return {
-		WHERE: {
-			AND: [
-				{ IS: { [`${p}dept`]: dept } },
-				{ IS: { [`${p}id`]: courseId } }
-			]
-		},
-		OPTIONS: {
-			COLUMNS: [`${p}instructor`, "maxAvg"],
-			ORDER: { dir: "DOWN", keys: ["maxAvg"] }
-		},
-		TRANSFORMATIONS: {
-			GROUP: [`${p}instructor`],
-			APPLY: [
-				{
-					maxAvg: { MAX: `${p}avg` }
-				}
-			]
-		}
-	};
-}
-
-// ② 某院系 → 按课程号聚合平均分（前端取前 N 行）
-function buildQuery_topCoursesByAvg(datasetId, dept) {
+// Simple：某院系 → 按课程号聚合平均分，按 avg 从高到低排
+function buildSimpleQuery(datasetId, dept) {
 	const p = `${datasetId}_`;
 	return {
 		WHERE: {
@@ -246,21 +333,57 @@ function buildQuery_topCoursesByAvg(datasetId, dept) {
 	};
 }
 
-// ③ 按平均分区间筛选所有 sections
-function buildQuery_avgRange(datasetId, minAvg, maxAvg) {
+// Advanced：指定院系 + 最小 pass + 最小 avg
+// （用 pass 大致代表“上课人数”）
+function buildAdvancedQuery(datasetId, dept, minPass, minAvg) {
 	const p = `${datasetId}_`;
 	return {
 		WHERE: {
 			AND: [
-				{ GT: { [`${p}avg`]: minAvg } },
-				{ LT: { [`${p}avg`]: maxAvg } }
+				{ IS: { [`${p}dept`]: dept } },
+				{ GT: { [`${p}pass`]: minPass } },
+				{ GT: { [`${p}avg`]: minAvg } }
 			]
 		},
 		OPTIONS: {
-			COLUMNS: [`${p}dept`, `${p}id`, `${p}uuid`, `${p}avg`],
-			ORDER: { dir: "UP", keys: [`${p}avg`] }
+			COLUMNS: [
+				`${p}dept`,
+				`${p}id`,
+				`${p}title`,
+				`${p}instructor`,
+				`${p}pass`,
+				`${p}avg`
+			],
+			ORDER: { dir: "DOWN", keys: [`${p}avg`] }
 		}
 	};
+}
+
+let currentQueryMode = "simple";
+
+function switchQueryMode(mode) {
+	currentQueryMode = mode;
+
+	const simplePanel = document.getElementById("simple-query-panel");
+	const advPanel = document.getElementById("advanced-query-panel");
+	const simpleBtn = document.getElementById("simple-query-btn");
+	const advBtn = document.getElementById("advanced-query-btn");
+
+	if (!simplePanel || !advPanel || !simpleBtn || !advBtn) {
+		return;
+	}
+
+	if (mode === "simple") {
+		simplePanel.style.display = "block";
+		advPanel.style.display = "none";
+		simpleBtn.classList.add("active");
+		advBtn.classList.remove("active");
+	} else {
+		simplePanel.style.display = "none";
+		advPanel.style.display = "block";
+		simpleBtn.classList.remove("active");
+		advBtn.classList.add("active");
+	}
 }
 
 async function runQuery() {
@@ -272,39 +395,40 @@ async function runQuery() {
 		return;
 	}
 
-	const template = document.getElementById("query-template-select").value;
-	const dept = (document.getElementById("param-dept").value || "").trim();
-	const courseId = (document.getElementById("param-course-id").value || "").trim();
-	const topN = parseInt(document.getElementById("param-top-n").value, 10) || 5;
-	const minAvgStr = document.getElementById("param-min-avg").value;
-	const maxAvgStr = document.getElementById("param-max-avg").value;
-
 	let query;
+	let topN = undefined; // simple 模式下会用到
 
 	try {
-		if (template === "avgByInstructor") {
-			if (!dept || !courseId) {
-				setStatus("query-status", "Template ① needs dept and course id.", true);
-				return;
-			}
-			query = buildQuery_avgByInstructor(datasetId, dept, courseId);
-		} else if (template === "topCoursesByAvg") {
+		if (currentQueryMode === "simple") {
+			const dept = (document.getElementById("simple-dept").value || "").trim();
+			topN = parseInt(
+				document.getElementById("simple-top-n").value,
+				10
+			) || 5;
+
 			if (!dept) {
-				setStatus("query-status", "Template ② needs dept.", true);
+				setStatus("query-status", "Simple Query: please enter dept (e.g., cpsc).", true);
 				return;
 			}
-			query = buildQuery_topCoursesByAvg(datasetId, dept);
-		} else if (template === "avgRange") {
-			const minAvg = Number(minAvgStr);
-			const maxAvg = Number(maxAvgStr);
-			if (Number.isNaN(minAvg) || Number.isNaN(maxAvg)) {
-				setStatus("query-status", "Template ③ needs minAvg and maxAvg (numbers).", true);
-				return;
-			}
-			query = buildQuery_avgRange(datasetId, minAvg, maxAvg);
+
+			query = buildSimpleQuery(datasetId, dept);
 		} else {
-			setStatus("query-status", "Unknown template.", true);
-			return;
+			const dept = (document.getElementById("adv-dept").value || "").trim();
+			const minPassStr = document.getElementById("adv-min-pass").value;
+			const minAvgStr = document.getElementById("adv-min-avg").value;
+			const minPass = Number(minPassStr);
+			const minAvg = Number(minAvgStr);
+
+			if (!dept || Number.isNaN(minPass) || Number.isNaN(minAvg)) {
+				setStatus(
+					"query-status",
+					"Advanced Query: please enter dept, min pass, and min avg.",
+					true
+				);
+				return;
+			}
+
+			query = buildAdvancedQuery(datasetId, dept, minPass, minAvg);
 		}
 	} catch (e) {
 		console.error(e);
@@ -329,12 +453,21 @@ async function runQuery() {
 
 		if (res.ok) {
 			let rows = json.result || [];
-			// 模板 ②：只取前 N 行
-			if (template === "topCoursesByAvg" && rows.length > topN) {
+
+			// Simple 模式可以只展示前 N 行
+			if (currentQueryMode === "simple" && typeof topN === "number" && rows.length > topN) {
 				rows = rows.slice(0, topN);
 			}
+
 			setStatus("query-status", `Query success. ${rows.length} row(s).`);
-			renderTable("query-table-container", rows);
+			if (currentQueryMode === "simple") {
+				// ⭐ 每次跑新 simple query 时重置为按 avgMark 降序
+				simpleSortKey = "avgMark";
+				simpleSortDirection = "DESC";
+				renderSimpleQueryTable("query-table-container", rows);
+			} else {
+				renderAdvancedQueryTable("query-table-container", rows);
+			}
 		} else {
 			setStatus("query-status", `Query failed: ${json.error || res.statusText}`, true);
 		}
@@ -346,12 +479,24 @@ async function runQuery() {
 	}
 }
 
+
 // ========= 事件绑定 =========
 window.addEventListener("DOMContentLoaded", () => {
 	document.getElementById("upload-btn").addEventListener("click", uploadDataset);
 	document.getElementById("list-btn").addEventListener("click", listDatasets);
 	document.getElementById("remove-btn").addEventListener("click", removeDataset);
 	document.getElementById("run-query-btn").addEventListener("click", runQuery);
+
+	// 模式切换按钮
+	const simpleBtn = document.getElementById("simple-query-btn");
+	const advBtn = document.getElementById("advanced-query-btn");
+	if (simpleBtn && advBtn) {
+		simpleBtn.addEventListener("click", () => switchQueryMode("simple"));
+		advBtn.addEventListener("click", () => switchQueryMode("advanced"));
+		// 默认简单查询
+		switchQueryMode("simple");
+	}
+
 
 	// 页面加载时自动刷新一次 dataset 列表
 	listDatasets().catch(() => {});
