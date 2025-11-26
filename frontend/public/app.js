@@ -8,6 +8,38 @@ let simpleQueryRows = [];
 let simpleSortDirection = "DESC"; // 初始和后端一样：按 avg 从高到低
 let simpleSortKey = "avgMark";     // 当前按哪一列排序
 
+// Sections 所有字段的元数据（来自产品手册）
+const SECTION_FIELDS = [
+	{ id: "uuid", label: "id (uuid)", type: "string" },
+	{ id: "id", label: "Course (id)", type: "string" },
+	{ id: "title", label: "Title", type: "string" },
+	{ id: "instructor", label: "Professor (instructor)", type: "string" },
+	{ id: "dept", label: "Subject (dept)", type: "string" },
+	{ id: "year", label: "Year", type: "number" },
+	{ id: "avg", label: "Avg", type: "number" },
+	{ id: "pass", label: "Pass", type: "number" },
+	{ id: "fail", label: "Fail", type: "number" },
+	{ id: "audit", label: "Audit", type: "number" }
+];
+
+const SECTION_STRING_FIELDS = new Set(
+	SECTION_FIELDS.filter((f) => f.type === "string").map((f) => f.id)
+);
+const SECTION_NUMBER_FIELDS = new Set(
+	SECTION_FIELDS.filter((f) => f.type === "number").map((f) => f.id)
+);
+
+// 选择一个“默认排序字段”：优先 avg，其次 year，再其次第一个
+function chooseDefaultOrderField(columnKeys) {
+	const cols = columnKeys && columnKeys.length
+		? columnKeys
+		: ["dept", "id", "title", "avg"];
+
+	if (cols.includes("avg")) return "avg";
+	if (cols.includes("year")) return "year";
+	return cols[0];
+}
+
 // ========= 工具函数 =========
 function setStatus(id, message, isError = false) {
 	const el = document.getElementById(id);
@@ -59,17 +91,16 @@ function renderAdvancedQueryTable(containerId, rows) {
 
 // ========= simple query 专用表格渲染（带可点击排序列） =========
 function renderSimpleQueryTable(containerId, rows) {
-	const container = document.getElementById(containerId);
+	const container = document.getElementById("query-table-container");
 	container.innerHTML = "";
 
 	if (!rows || rows.length === 0) {
 		container.textContent = "No results.";
-		simpleQueryRows = [];
 		return;
 	}
 
-	// 存一份全局，方便排序后再次渲染
-	simpleQueryRows = rows.slice();
+// 获取 Top N 设置
+	const topN = parseInt(document.getElementById("simple-top-n").value, 10) || 5;
 
 	const table = document.createElement("table");
 	const thead = document.createElement("thead");
@@ -78,7 +109,7 @@ function renderSimpleQueryTable(containerId, rows) {
 	const keys = Object.keys(rows[0]);
 
 	// 哪些列可排序：sections_id / avgMark
-	const sortableKeys = new Set(["sections_id", "avgMark"]);
+	const sortableKeys = new Set(keys);
 
 	// 表头
 	const headerRow = document.createElement("tr");
@@ -119,6 +150,7 @@ function renderSimpleQueryTable(containerId, rows) {
 					simpleSortDirection = "ASC";
 				}
 
+				// ⭐ 关键修改：对完整数据排序
 				simpleQueryRows.sort((a, b) => {
 					const av = Number(a[simpleSortKey]);
 					const bv = Number(b[simpleSortKey]);
@@ -136,9 +168,13 @@ function renderSimpleQueryTable(containerId, rows) {
 							: bs.localeCompare(as);
 					}
 				});
+				// ⭐ 排序后只取前 N 行显示
+				const displayRows = simpleQueryRows.slice(0, topN);
 
+				// 更新状态信息
+				setStatus("query-status", `Query success. Showing ${displayRows.length} of ${simpleQueryRows.length} row(s).`);
 				// 用新的顺序重新渲染
-				renderSimpleQueryTable(containerId, simpleQueryRows);
+				renderSimpleQueryTable(containerId, displayRows);
 			});
 		} else {
 			th.textContent = key;
@@ -311,53 +347,126 @@ async function removeDataset() {
 
 // ========= 4. 查询（Simple / Advanced） =========
 
-// Simple：某院系 → 按课程号聚合平均分，按 avg 从高到低排
-function buildSimpleQuery(datasetId, dept) {
+// Simple：单字段过滤，返回原始 section 行，按一个合适的数值字段降序排序
+function buildSimpleQuery(datasetId, fieldKey, fieldValue, columnKeys) {
 	const p = `${datasetId}_`;
+
+	// 1. WHERE：根据字段类型选择 IS / EQ
+	let where = {};
+	if (fieldKey && fieldValue !== "") {
+		const fullKey = `${p}${fieldKey}`;
+
+		if (SECTION_STRING_FIELDS.has(fieldKey)) {
+			// 字符串 → 模糊匹配 *value*
+			const pattern = fieldValue.includes("*")
+				? fieldValue
+				: `*${fieldValue}*`;
+			where = { IS: { [fullKey]: pattern } };
+		} else if (SECTION_NUMBER_FIELDS.has(fieldKey)) {
+			const num = Number(fieldValue);
+			if (Number.isNaN(num)) {
+				throw new Error("Numeric field requires a number value.");
+			}
+			where = { EQ: { [fullKey]: num } };
+		}
+	}
+
+	// 2. COLUMNS：根据用户勾选
+	const cols =
+		columnKeys && columnKeys.length
+			? columnKeys
+			: ["dept", "id", "title", "avg"];
+	const columns = cols.map((c) => `${p}${c}`);
+
+	// 3. ORDER：默认字段（avg → year → 第一个）
+	const orderField = chooseDefaultOrderField(cols);
+	const orderKeyFull = `${p}${orderField}`;
+	if (!columns.includes(orderKeyFull)) {
+		columns.push(orderKeyFull);
+	}
+
 	return {
-		WHERE: {
-			IS: { [`${p}dept`]: dept }
-		},
+		WHERE: where,
 		OPTIONS: {
-			COLUMNS: [`${p}dept`, `${p}id`, `${p}title`, "avgMark"],
-			ORDER: { dir: "DOWN", keys: ["avgMark"] }
-		},
-		TRANSFORMATIONS: {
-			GROUP: [`${p}dept`, `${p}id`, `${p}title`],
-			APPLY: [
-				{
-					avgMark: { AVG: `${p}avg` }
-				}
-			]
+			COLUMNS: columns,
+			ORDER: {
+				dir: "DOWN",
+				keys: [orderKeyFull]
+			}
 		}
 	};
 }
 
-// Advanced：指定院系 + 最小 pass + 最小 avg
-// （用 pass 大致代表“上课人数”）
-function buildAdvancedQuery(datasetId, dept, minPass, minAvg) {
+
+// Advanced：组合多个条件（dept / instructor / year range / minPass / minAvg）
+// 返回原始 section 行，不做 TRANSFORMATIONS
+function buildAdvancedQuery(datasetId, options) {
 	const p = `${datasetId}_`;
+	const filters = [];
+
+	if (options.dept) {
+		filters.push({ IS: { [`${p}dept`]: options.dept } });
+	}
+
+	if (options.instructor) {
+		const pattern = options.instructor.includes("*")
+			? options.instructor
+			: `*${options.instructor}*`;
+		filters.push({ IS: { [`${p}instructor`]: pattern } });
+	}
+
+	if (typeof options.yearMin === "number" && !Number.isNaN(options.yearMin)) {
+		// year >= yearMin  → year > (yearMin - 1)
+		filters.push({ GT: { [`${p}year`]: options.yearMin - 1 } });
+	}
+
+	if (typeof options.yearMax === "number" && !Number.isNaN(options.yearMax)) {
+		// year <= yearMax → year < (yearMax + 1)
+		filters.push({ LT: { [`${p}year`]: options.yearMax + 1 } });
+	}
+
+	if (typeof options.minPass === "number" && !Number.isNaN(options.minPass)) {
+		filters.push({ GT: { [`${p}pass`]: options.minPass } });
+	}
+
+	if (typeof options.minAvg === "number" && !Number.isNaN(options.minAvg)) {
+		filters.push({ GT: { [`${p}avg`]: options.minAvg } });
+	}
+
+	let where;
+	if (filters.length === 0) {
+		where = {}; // 无条件 → 全部 section
+	} else if (filters.length === 1) {
+		where = filters[0];
+	} else {
+		where = { AND: filters };
+	}
+
+	// COLUMNS：根据用户勾选
+	const cols =
+		options.columns && options.columns.length
+			? options.columns
+			: ["uuid", "dept", "id", "title", "instructor", "year", "avg"];
+
+	const columns = cols.map((c) => `${p}${c}`);
+
+	// ORDER：用 UI 里选的字段
+	const orderField = options.orderKey || "avg";
+	const orderDir = options.orderDir || "DOWN";
+	const orderKeyFull = `${p}${orderField}`;
+	if (!columns.includes(orderKeyFull)) {
+		columns.push(orderKeyFull);
+	}
+
 	return {
-		WHERE: {
-			AND: [
-				{ IS: { [`${p}dept`]: dept } },
-				{ GT: { [`${p}pass`]: minPass } },
-				{ GT: { [`${p}avg`]: minAvg } }
-			]
-		},
+		WHERE: where,
 		OPTIONS: {
-			COLUMNS: [
-				`${p}dept`,
-				`${p}id`,
-				`${p}title`,
-				`${p}instructor`,
-				`${p}pass`,
-				`${p}avg`
-			],
-			ORDER: { dir: "DOWN", keys: [`${p}avg`] }
+			COLUMNS: columns,
+			ORDER: { dir: orderDir, keys: [orderKeyFull] }
 		}
 	};
 }
+
 
 let currentQueryMode = "simple";
 
@@ -400,35 +509,120 @@ async function runQuery() {
 
 	try {
 		if (currentQueryMode === "simple") {
-			const dept = (document.getElementById("simple-dept").value || "").trim();
+			const fieldKey = document.getElementById("simple-field").value;
+			const fieldValue = (document.getElementById("simple-value").value || "").trim();
 			topN = parseInt(
 				document.getElementById("simple-top-n").value,
 				10
 			) || 5;
 
-			if (!dept) {
-				setStatus("query-status", "Simple Query: please enter dept (e.g., cpsc).", true);
-				return;
-			}
-
-			query = buildSimpleQuery(datasetId, dept);
-		} else {
-			const dept = (document.getElementById("adv-dept").value || "").trim();
-			const minPassStr = document.getElementById("adv-min-pass").value;
-			const minAvgStr = document.getElementById("adv-min-avg").value;
-			const minPass = Number(minPassStr);
-			const minAvg = Number(minAvgStr);
-
-			if (!dept || Number.isNaN(minPass) || Number.isNaN(minAvg)) {
+			if (!fieldKey || !fieldValue) {
 				setStatus(
 					"query-status",
-					"Advanced Query: please enter dept, min pass, and min avg.",
+					"Simple Query: please select a field and enter a value.",
 					true
 				);
 				return;
 			}
 
-			query = buildAdvancedQuery(datasetId, dept, minPass, minAvg);
+			// 收集 simple 列选择
+			const colCheckboxes = document.querySelectorAll(
+				"#simple-columns input[type='checkbox']"
+			);
+			const selectedColumns = Array.from(colCheckboxes)
+				.filter((cb) => cb.checked)
+				.map((cb) => cb.value);
+
+			if (!selectedColumns.length) {
+				setStatus(
+					"query-status",
+					"Simple Query: please choose at least one column to display.",
+					true
+				);
+				return;
+			}
+
+			query = buildSimpleQuery(datasetId, fieldKey, fieldValue, selectedColumns);
+
+			// 为前端表格记住默认排序 key（要和 buildSimpleQuery 的逻辑一致）
+			const orderField = chooseDefaultOrderField(selectedColumns);
+			simpleSortKey = `${datasetId}_${orderField}`;
+			simpleSortDirection = "DESC";
+
+		} else {
+			// === Advanced 分支 ===
+			const dept = (document.getElementById("adv-dept").value || "").trim();
+			const instructor = (document.getElementById("adv-instructor").value || "").trim();
+
+			const yearMinStr = document.getElementById("adv-year-min").value;
+			const yearMaxStr = document.getElementById("adv-year-max").value;
+			const minPassStr = document.getElementById("adv-min-pass").value;
+			const minAvgStr = document.getElementById("adv-min-avg").value;
+
+			const yearMin = yearMinStr === "" ? undefined : Number(yearMinStr);
+			const yearMax = yearMaxStr === "" ? undefined : Number(yearMaxStr);
+			const minPass = minPassStr === "" ? undefined : Number(minPassStr);
+			const minAvg = minAvgStr === "" ? undefined : Number(minAvgStr);
+
+			// 数字校验
+			if (
+				(yearMinStr !== "" && Number.isNaN(yearMin)) ||
+				(yearMaxStr !== "" && Number.isNaN(yearMax)) ||
+				(minPassStr !== "" && Number.isNaN(minPass)) ||
+				(minAvgStr !== "" && Number.isNaN(minAvg))
+			) {
+				setStatus(
+					"query-status",
+					"Advanced Query: year / pass / avg must be numbers.",
+					true
+				);
+				return;
+			}
+
+			// 收集列选择
+			const colCheckboxes = document.querySelectorAll(
+				"#adv-columns input[type='checkbox']"
+			);
+			const selectedCols = Array.from(colCheckboxes)
+				.filter((cb) => cb.checked)
+				.map((cb) => cb.value);
+
+			if (!selectedCols.length) {
+				setStatus(
+					"query-status",
+					"Advanced Query: please select at least one column to display.",
+					true
+				);
+				return;
+			}
+
+			// 排序选择（如果下拉框不存在，就用默认 avg / DOWN）
+			let orderKey = "avg";
+			let orderDir = "DOWN";
+
+			const orderKeyEl = document.getElementById("adv-order-key");
+			const orderDirEl = document.getElementById("adv-order-dir");
+
+			if (orderKeyEl && orderKeyEl.value) {
+				orderKey = orderKeyEl.value;
+			}
+			if (orderDirEl && orderDirEl.value) {
+				orderDir = orderDirEl.value;
+			}
+
+// 构建高级查询
+			query = buildAdvancedQuery(datasetId, {
+				dept,
+				instructor,
+				yearMin,
+				yearMax,
+				minPass,
+				minAvg,
+				columns: selectedCols,
+				orderKey,
+				orderDir
+			});
+
 		}
 	} catch (e) {
 		console.error(e);
@@ -452,21 +646,32 @@ async function runQuery() {
 			JSON.stringify(json, null, 2);
 
 		if (res.ok) {
-			let rows = json.result || [];
+			let allRows = json.result || [];
 
-			// Simple 模式可以只展示前 N 行
-			if (currentQueryMode === "simple" && typeof topN === "number" && rows.length > topN) {
-				rows = rows.slice(0, topN);
-			}
-
-			setStatus("query-status", `Query success. ${rows.length} row(s).`);
+			// ⭐ 关键修改：在 Simple 模式下
 			if (currentQueryMode === "simple") {
-				// ⭐ 每次跑新 simple query 时重置为按 avgMark 降序
-				simpleSortKey = "avgMark";
+				// 1. 先保存完整数据到全局变量
+				simpleQueryRows = allRows.slice();
+
+				// 2. 重置排序状态
+				const orderField = chooseDefaultOrderField(
+					Array.from(document.querySelectorAll("#simple-columns input[type='checkbox']"))
+						.filter(cb => cb.checked)
+						.map(cb => cb.value)
+				);
+				simpleSortKey = `${datasetId}_${orderField}`;
 				simpleSortDirection = "DESC";
-				renderSimpleQueryTable("query-table-container", rows);
+
+				// 3. 只截取前 N 行用于显示
+				const displayRows = typeof topN === "number" && allRows.length > topN
+					? allRows.slice(0, topN)
+					: allRows;
+
+				setStatus("query-status", `Query success. Showing ${displayRows.length} of ${allRows.length} row(s).`);
+				renderSimpleQueryTable("query-table-container", displayRows);
 			} else {
-				renderAdvancedQueryTable("query-table-container", rows);
+				setStatus("query-status", `Query success. ${allRows.length} row(s).`);
+				renderAdvancedQueryTable("query-table-container", allRows);
 			}
 		} else {
 			setStatus("query-status", `Query failed: ${json.error || res.statusText}`, true);
