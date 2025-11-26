@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<title>Section Insights UI</title>
+	<style>
+		:root {
+			--bg: #0f172a;
+			--bg-soft: #111827;
+			--card-bg: #020617;
+			--accent: #38bdf8;
+			--accent-soft: rgba(56, 189, 248, 0.15);
+			--accent-strong: #0284c7;
+			--border-subtle: #1f2937;
+			--text-main: #e5e7eb;
+			--text-muted: #9ca3af;
+			--error: #f97373;
+			--radius-lg: 14px;
+			--radius-md: 10px;
+		}
+
+		* {
+			box-sizing: border-box;
+		}
+
+		body {
+			font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+			margin: 0;
+			min-height: 100vh;
+			color: var(--text-main);
+			background:
+				radial-gradient(circle at 0% 0%, rgba(56, 189, 248, 0.22), transparent 55%),
+				radial-gradient(circle at 100% 100%, rgba(129, 140, 248, 0.28), transparent 55%),
+				var(--bg);
+		}
+
+		/* 顶部导航 */
+		header.topbar {
+			position: sticky;
+			top: 0;
+			z-index: 10;
+			backdrop-filter: blur(14px);
+			background: linear-gradient(to right, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.92));
+			border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+		}
+
+		.topbar-inner {
+			max-width: 1040px;
+			margin: 0 auto;
+			padding: 10px 20px;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+		}
+
+		.brand {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+		}
+
+		.brand-logo {
+			width: 26px;
+			height: 26px;
+			border-radius: 999px;
+			background: radial-gradient(circle at 30% 0%, #e0f2fe, #0ea5e9 55%, #0369a1 100%);
+			box-shadow: 0 0 20px rgba(56, 189, 248, 0.6);
+		}
+
+		.brand-title {
+			font-weight: 600;
+			letter-spacing: 0.03em;
+			font-size: 0.98rem;
+		}
+
+		.brand-subtitle {
+			font-size: 0.78rem;
+			color: var(--text-muted);
+		}
+
+		.badge {
+			padding: 3px 8px;
+			font-size: 0.7rem;
+			border-radius: 999px;
+			border: 1px solid rgba(148, 163, 184, 0.4);
+			color: var(--text-muted);
+		}
+
+		/* 页面主体 */
+		main.page {
+			max-width: 1040px;
+			margin: 18px auto 40px;
+			padding: 0 18px 32px;
+		}
+
+		.page-intro {
+			margin-bottom: 14px;
+			font-size: 0.9rem;
+			color: var(--text-muted);
+		}
+
+		.page-intro code {
+			background: rgba(15, 23, 42, 0.9);
+			padding: 2px 6px;
+			border-radius: 6px;
+			border: 1px solid rgba(148, 163, 184, 0.4);
+			font-size: 0.8rem;
+		}
+
+		h1 {
+			font-size: 1.6rem;
+			font-weight: 600;
+			margin: 10px 0 4px;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
+
+		h1 span.highlight {
+			color: var(--accent);
+		}
+
+		h2 {
+			margin: 0 0 10px;
+			font-size: 1.05rem;
+			font-weight: 600;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
+
+		h2 .pill {
+			font-size: 0.68rem;
+			padding: 3px 7px;
+			border-radius: 999px;
+			border: 1px solid rgba(148, 163, 184, 0.4);
+			color: var(--text-muted);
+		}
+
+		/* 卡片样式 */
+		section.card {
+			background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.12), transparent 60%),
+			linear-gradient(to bottom right, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.96));
+			border-radius: var(--radius-lg);
+			padding: 14px 16px 16px;
+			margin-top: 14px;
+			border: 1px solid rgba(148, 163, 184, 0.28);
+			box-shadow:
+				0 16px 40px rgba(15, 23, 42, 0.72),
+				0 0 0 1px rgba(15, 23, 42, 1);
+		}
+
+		.card + .card {
+			margin-top: 16px;
+		}
+
+		.card-header-line {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			margin-bottom: 6px;
+		}
+
+		.card-desc {
+			font-size: 0.82rem;
+			color: var(--text-muted);
+			margin-bottom: 8px;
+		}
+
+		/* 表单布局 */
+		.row {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 18px;
+		}
+
+		.row > div {
+			min-width: 240px;
+			flex: 1;
+		}
+
+		label {
+			display: block;
+			margin: 6px 0 2px;
+			font-size: 0.82rem;
+			color: var(--text-muted);
+		}
+
+		input[type="text"],
+		input[type="number"],
+		select {
+			padding: 6px 9px;
+			font-size: 0.86rem;
+			width: 100%;
+			border-radius: var(--radius-md);
+			border: 1px solid rgba(148, 163, 184, 0.5);
+			background: rgba(15, 23, 42, 0.95);
+			color: var(--text-main);
+			outline: none;
+			transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+		}
+
+		input[type="text"]:focus,
+		input[type="number"]:focus,
+		select:focus {
+			border-color: var(--accent);
+			box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.7);
+			background: rgba(15, 23, 42, 0.98);
+		}
+
+		input[type="file"] {
+			margin-top: 4px;
+			font-size: 0.8rem;
+			color: var(--text-muted);
+		}
+
+		/* 按钮 */
+		button {
+			margin-top: 10px;
+			padding: 7px 14px;
+			font-size: 0.86rem;
+			border-radius: 999px;
+			border: 1px solid var(--accent-strong);
+			background: radial-gradient(circle at top left, #38bdf8, #0ea5e9);
+			color: #0b1020;
+			font-weight: 500;
+			cursor: pointer;
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			transition:
+				transform 0.08s ease-out,
+				box-shadow 0.12s ease-out,
+				filter 0.1s ease-out,
+				background 0.15s ease;
+			box-shadow:
+				0 10px 25px rgba(56, 189, 248, 0.32),
+				0 0 0 1px rgba(15, 23, 42, 0.85);
+		}
+
+		button::after {
+			content: "↗";
+			font-size: 0.78rem;
+			opacity: 0.7;
+		}
+
+		button:hover:not(:disabled) {
+			transform: translateY(-1px);
+			filter: brightness(1.05);
+			box-shadow:
+				0 16px 36px rgba(56, 189, 248, 0.45),
+				0 0 0 1px rgba(15, 23, 42, 1);
+		}
+
+		button:active:not(:disabled) {
+			transform: translateY(0);
+			box-shadow:
+				0 8px 18px rgba(56, 189, 248, 0.28),
+				0 0 0 1px rgba(15, 23, 42, 0.9);
+		}
+
+		button:disabled {
+			opacity: 0.6;
+			cursor: default;
+			box-shadow: none;
+			background: linear-gradient(to right, #4b5563, #374151);
+			border-color: #4b5563;
+			color: #d1d5db;
+		}
+
+		.status {
+			margin-top: 6px;
+			font-size: 0.8rem;
+			color: var(--text-muted);
+		}
+
+		table {
+			border-collapse: collapse;
+			margin-top: 10px;
+			width: 100%;
+			background: rgba(15, 23, 42, 0.92);
+			border-radius: 10px;
+			overflow: hidden;
+			border: 1px solid rgba(148, 163, 184, 0.35);
+		}
+
+		th, td {
+			border-bottom: 1px solid rgba(31, 41, 55, 0.85);
+			padding: 6px 10px;
+			font-size: 0.8rem;
+			text-align: left;
+			white-space: nowrap;
+		}
+
+		th {
+			background: linear-gradient(to right, #020617, #020617);
+			color: #e5e7eb;
+			font-weight: 500;
+		}
+
+		tr:nth-child(even) td {
+			background: rgba(15, 23, 42, 0.9);
+		}
+
+		tr:nth-child(odd) td {
+			background: rgba(15, 23, 42, 0.95);
+		}
+
+		pre {
+			background: rgba(15, 23, 42, 0.98);
+			color: #e5e7eb;
+			padding: 10px;
+			font-size: 0.78rem;
+			max-height: 260px;
+			overflow: auto;
+			border-radius: 10px;
+			border: 1px solid rgba(148, 163, 184, 0.38);
+		}
+
+		@media (max-width: 720px) {
+			main.page {
+				padding: 0 14px 24px;
+			}
+
+			section.card {
+				padding: 12px 12px 14px;
+			}
+
+			.topbar-inner {
+				padding-inline: 14px;
+			}
+
+			h1 {
+				font-size: 1.35rem;
+			}
+		}
+
+		.query-mode-toggle {
+			margin: 10px 0 8px;
+			display: inline-flex;
+			gap: 8px;
+		}
+
+		.query-mode-btn {
+			background: transparent;
+			border-radius: 999px;
+			border: 1px solid rgba(148, 163, 184, 0.5);
+			color: var(--text-muted);
+			padding: 5px 12px;
+			font-size: 0.8rem;
+			box-shadow: none;
+		}
+
+		.query-mode-btn::after {
+			/* 覆盖通用 button 的箭头 */
+			content: "";
+		}
+
+		.query-mode-btn.active {
+			background: var(--accent-soft);
+			color: var(--accent);
+			border-color: var(--accent);
+		}
+
+		th.sortable {
+			cursor: pointer;
+			user-select: none;
+		}
+
+		th.sortable .sort-arrow {
+			font-size: 0.7rem;
+			margin-left: 4px;
+			opacity: 0.8;
+		}
+
+
+	</style>
+</head>
+<body>
+<header class="topbar">
+	<div class="topbar-inner">
+		<div class="brand">
+			<div class="brand-logo"></div>
+			<div>
+				<div class="brand-title">
+					<span class="highlight">Section Insights</span> UI
+				</div>
+				<div class="brand-subtitle">
+					CPSC 310 · InsightUBC · REST + Frontend
+				</div>
+			</div>
+		</div>
+		<div class="badge">localhost:4321</div>
+	</div>
+</header>
+
+<main class="page">
+	<h1>
+		Section Insights
+		<span class="highlight">Dashboard</span>
+	</h1>
+	<p class="page-intro">
+		后端服务默认运行在 <code>http://localhost:4321</code>。
+		使用下面的卡片可以：添加 / 查看 / 删除数据集，以及运行几个常用的查询模板。
+	</p>
+
+	<!-- 1. 上传 dataset -->
+	<section class="card">
+		<div class="card-header-line">
+			<h2>1. Add Dataset <span class="pill">sections.zip → addDataset</span></h2>
+		</div>
+		<p class="card-desc">
+			上传包含 UBC sections 的 <code>.zip</code> 文件，并为它指定一个 dataset id
+			（例如 <code>sections</code>）。这个 id 之后会作为查询前缀使用。
+		</p>
+		<div class="row">
+			<div>
+				<label for="upload-dataset-id">
+					Dataset ID（例如：<code>sections</code>）
+				</label>
+				<input type="text" id="upload-dataset-id" placeholder="sections" />
+
+				<label for="upload-dataset-file">Zip File</label>
+				<input type="file" id="upload-dataset-file" accept=".zip" />
+
+				<button id="upload-btn">Upload Dataset</button>
+				<div id="upload-status" class="status"></div>
+			</div>
+		</div>
+	</section>
+
+	<!-- 2. 列出 datasets -->
+	<section class="card">
+		<div class="card-header-line">
+			<h2>2. List Datasets <span class="pill">listDatasets</span></h2>
+		</div>
+		<p class="card-desc">
+			查看当前服务器中有哪些 datasets，以及每个 dataset 的类型和行数。
+		</p>
+		<button id="list-btn">Refresh Dataset List</button>
+		<div id="list-status" class="status"></div>
+		<div id="datasets-table-container"></div>
+	</section>
+
+	<!-- 3. 删除 dataset -->
+	<section class="card">
+		<div class="card-header-line">
+			<h2>3. Remove Dataset <span class="pill">removeDataset</span></h2>
+		</div>
+		<p class="card-desc">
+			输入要删除的 dataset id。通常可以先在「List Datasets」里确认名称，再执行删除。
+		</p>
+		<label for="remove-dataset-select">Dataset ID to remove</label>
+		<select id="remove-dataset-select">
+			<option value="">-- Select dataset --</option>
+		</select>
+		<button id="remove-btn">Remove Dataset</button>
+		<div id="remove-status" class="status"></div>
+
+	</section>
+
+	<!-- 4. 经典查询 -->
+	<section class="card">
+		<div class="card-header-line">
+			<h2>4. Section Insights Queries <span class="pill">performQuery</span></h2>
+		</div>
+		<p class="card-desc">
+			这里把查询分成两类：<strong>Simple Query</strong> 用来做非常常见的查询，
+			比如某个院系里哪些课程平均分最高；<strong>Advanced Query</strong> 可以加上人数和分数的条件。
+		</p>
+
+		<!-- 统一的 dataset 选择，下方简单/复杂查询都会用到 -->
+		<label for="query-dataset-select">
+			Dataset ID（要和你 addDataset 时保持一致）
+		</label>
+		<select id="query-dataset-select">
+			<option value="">-- Select dataset --</option>
+		</select>
+
+		<!-- 模式切换按钮 -->
+		<div class="query-mode-toggle">
+			<button type="button" id="simple-query-btn" class="query-mode-btn active">
+				Simple Query
+			</button>
+			<button type="button" id="advanced-query-btn" class="query-mode-btn">
+				Advanced Query
+			</button>
+		</div>
+
+		<!-- Simple Query 面板 -->
+		<div id="simple-query-panel">
+			<p class="card-desc">
+				Simple Query：选一个院系（比如 <code>cpsc</code>），按课程号聚合平均分，
+				并按平均分从高到低排序。前端可以只展示前 N 门课。
+			</p>
+			<div class="row">
+				<div>
+					<label for="simple-dept">
+						Dept（例如 <code>cpsc</code>）
+					</label>
+					<input type="text" id="simple-dept" placeholder="cpsc" />
+
+					<label for="simple-top-n">
+						Top N（只显示前 N 门课）
+					</label>
+					<input type="number" id="simple-top-n" min="1" value="5" />
+				</div>
+			</div>
+		</div>
+
+		<!-- Advanced Query 面板 -->
+		<div id="advanced-query-panel" style="display:none;">
+			<p class="card-desc">
+				Advanced Query：在指定院系里，查找
+				<strong>通过人数</strong>（pass）大于某个值，并且
+				<strong>平均分</strong> 大于某个值的 section。
+			</p>
+			<div class="row">
+				<div>
+					<label for="adv-dept">
+						Dept（例如 <code>cpsc</code>）
+					</label>
+					<input type="text" id="adv-dept" placeholder="cpsc" />
+
+					<label for="adv-min-pass">
+						Min Pass（人数至少多少人，例如 <code>50</code>）
+					</label>
+					<input type="number" id="adv-min-pass" value="50" />
+
+					<label for="adv-min-avg">
+						Min Avg（平均分至少多少，例如 <code>80</code>）
+					</label>
+					<input type="number" id="adv-min-avg" value="80" />
+				</div>
+			</div>
+		</div>
+
+		<button id="run-query-btn">Run Query</button>
+		<div id="query-status" class="status"></div>
+		<div id="query-table-container"></div>
+
+		<h3 style="margin-top: 12px; font-size: 0.9rem;">Raw JSON Result</h3>
+		<pre id="query-json-output">// result will show here</pre>
+	</section>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
