@@ -5,18 +5,20 @@
 	<title>Section Insights UI</title>
 	<style>
 		:root {
-			--bg: #0f172a;
-			--bg-soft: #111827;
-			--card-bg: #020617;
-			--accent: #38bdf8;
-			--accent-soft: rgba(56, 189, 248, 0.15);
-			--accent-strong: #0284c7;
-			--border-subtle: #1f2937;
-			--text-main: #e5e7eb;
-			--text-muted: #9ca3af;
-			--error: #f97373;
-			--radius-lg: 14px;
-			--radius-md: 10px;
+			/* UBC 配色方案 */
+			--ubc-blue: #002145;        /* UBC 深蓝色 */
+			--ubc-blue-light: #0055B7;  /* UBC 浅蓝色 */
+			--white: #ffffff;
+			--grey-light: #f8f9fa;
+			--grey: #e9ecef;
+			--grey-dark: #6c757d;
+			--text-dark: #002145;
+			--text-muted: #495057;
+			--accent: #0055B7;
+			--error: #dc3545;
+			--success: #28a745;
+			--radius-lg: 12px;
+			--radius-md: 8px;
 		}
 
 		* {
@@ -27,11 +29,8 @@
 			font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 			margin: 0;
 			min-height: 100vh;
-			color: var(--text-main);
-			background:
-				radial-gradient(circle at 0% 0%, rgba(56, 189, 248, 0.22), transparent 55%),
-				radial-gradient(circle at 100% 100%, rgba(129, 140, 248, 0.28), transparent 55%),
-				var(--bg);
+			color: var(--text-dark);
+			background: var(--grey-light);
 		}
 
 		/* 顶部导航 */
@@ -39,15 +38,14 @@
 			position: sticky;
 			top: 0;
 			z-index: 10;
-			backdrop-filter: blur(14px);
-			background: linear-gradient(to right, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.92));
-			border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+			background: var(--ubc-blue);
+			box-shadow: 0 2px 8px rgba(0, 33, 69, 0.15);
 		}
 
 		.topbar-inner {
-			max-width: 1040px;
+			max-width: 1200px;
 			margin: 0 auto;
-			padding: 10px 20px;
+			padding: 12px 24px;
 			display: flex;
 			align-items: center;
 			justify-content: space-between;
@@ -56,332 +54,375 @@
 		.brand {
 			display: flex;
 			align-items: center;
-			gap: 10px;
+			gap: 16px;
 		}
 
 		.brand-logo {
-			width: 26px;
-			height: 26px;
-			border-radius: 999px;
-			background: radial-gradient(circle at 30% 0%, #e0f2fe, #0ea5e9 55%, #0369a1 100%);
-			box-shadow: 0 0 20px rgba(56, 189, 248, 0.6);
+			width: 60px;
+			height: 60px;
+			background: var(--white);
+			border-radius: 4px;
+			padding: 4px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.brand-logo img {
+			width: 100%;
+			height: 100%;
+			object-fit: contain;
+		}
+
+		.brand-text {
+			display: flex;
+			flex-direction: column;
 		}
 
 		.brand-title {
 			font-weight: 600;
-			letter-spacing: 0.03em;
-			font-size: 0.98rem;
+			font-size: 1.1rem;
+			color: var(--white);
+			letter-spacing: 0.02em;
+		}
+
+		.brand-title .highlight {
+			color: var(--white);
+			font-weight: 700;
 		}
 
 		.brand-subtitle {
-			font-size: 0.78rem;
-			color: var(--text-muted);
+			font-size: 0.8rem;
+			color: rgba(255, 255, 255, 0.8);
+			margin-top: 2px;
 		}
 
 		.badge {
-			padding: 3px 8px;
-			font-size: 0.7rem;
+			padding: 4px 12px;
+			font-size: 0.75rem;
 			border-radius: 999px;
-			border: 1px solid rgba(148, 163, 184, 0.4);
-			color: var(--text-muted);
+			background: rgba(255, 255, 255, 0.15);
+			color: var(--white);
+			border: 1px solid rgba(255, 255, 255, 0.3);
 		}
 
 		/* 页面主体 */
 		main.page {
-			max-width: 1040px;
-			margin: 18px auto 40px;
-			padding: 0 18px 32px;
+			max-width: 1200px;
+			margin: 24px auto 40px;
+			padding: 0 24px 32px;
 		}
 
 		.page-intro {
-			margin-bottom: 14px;
-			font-size: 0.9rem;
+			margin-bottom: 16px;
+			font-size: 0.95rem;
 			color: var(--text-muted);
+			background: var(--white);
+			padding: 16px;
+			border-radius: var(--radius-md);
+			border-left: 4px solid var(--ubc-blue);
 		}
 
 		.page-intro code {
-			background: rgba(15, 23, 42, 0.9);
+			background: var(--grey);
 			padding: 2px 6px;
-			border-radius: 6px;
-			border: 1px solid rgba(148, 163, 184, 0.4);
-			font-size: 0.8rem;
+			border-radius: 4px;
+			font-size: 0.85rem;
+			color: var(--ubc-blue);
+			font-weight: 500;
 		}
 
 		h1 {
-			font-size: 1.6rem;
-			font-weight: 600;
-			margin: 10px 0 4px;
+			font-size: 1.8rem;
+			font-weight: 700;
+			margin: 16px 0 8px;
+			color: var(--ubc-blue);
 			display: flex;
 			align-items: center;
 			gap: 8px;
 		}
 
 		h1 span.highlight {
-			color: var(--accent);
+			color: var(--ubc-blue-light);
 		}
 
 		h2 {
-			margin: 0 0 10px;
-			font-size: 1.05rem;
+			margin: 0 0 12px;
+			font-size: 1.1rem;
 			font-weight: 600;
+			color: var(--ubc-blue);
 			display: flex;
 			align-items: center;
 			gap: 8px;
 		}
 
 		h2 .pill {
-			font-size: 0.68rem;
-			padding: 3px 7px;
+			font-size: 0.7rem;
+			padding: 3px 8px;
 			border-radius: 999px;
-			border: 1px solid rgba(148, 163, 184, 0.4);
+			background: var(--grey);
 			color: var(--text-muted);
+			font-weight: 500;
 		}
 
 		/* 卡片样式 */
 		section.card {
-			background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.12), transparent 60%),
-			linear-gradient(to bottom right, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.96));
+			background: var(--white);
 			border-radius: var(--radius-lg);
-			padding: 14px 16px 16px;
-			margin-top: 14px;
-			border: 1px solid rgba(148, 163, 184, 0.28);
-			box-shadow:
-				0 16px 40px rgba(15, 23, 42, 0.72),
-				0 0 0 1px rgba(15, 23, 42, 1);
+			padding: 20px 24px 24px;
+			margin-top: 16px;
+			border: 1px solid var(--grey);
+			box-shadow: 0 2px 8px rgba(0, 33, 69, 0.08);
+			transition: box-shadow 0.2s ease;
+		}
+
+		section.card:hover {
+			box-shadow: 0 4px 16px rgba(0, 33, 69, 0.12);
 		}
 
 		.card + .card {
-			margin-top: 16px;
+			margin-top: 20px;
 		}
 
 		.card-header-line {
 			display: flex;
 			align-items: center;
 			justify-content: space-between;
-			margin-bottom: 6px;
+			margin-bottom: 8px;
 		}
 
 		.card-desc {
-			font-size: 0.82rem;
+			font-size: 0.9rem;
 			color: var(--text-muted);
-			margin-bottom: 8px;
+			margin-bottom: 12px;
+			line-height: 1.5;
 		}
 
 		/* 表单布局 */
 		.row {
 			display: flex;
 			flex-wrap: wrap;
-			gap: 18px;
+			gap: 20px;
 		}
 
 		.row > div {
-			min-width: 240px;
+			min-width: 280px;
 			flex: 1;
 		}
 
 		label {
 			display: block;
-			margin: 6px 0 2px;
-			font-size: 0.82rem;
-			color: var(--text-muted);
+			margin: 8px 0 4px;
+			font-size: 0.85rem;
+			color: var(--text-dark);
+			font-weight: 500;
 		}
 
 		input[type="text"],
 		input[type="number"],
 		select {
-			padding: 6px 9px;
-			font-size: 0.86rem;
+			padding: 8px 12px;
+			font-size: 0.9rem;
 			width: 100%;
 			border-radius: var(--radius-md);
-			border: 1px solid rgba(148, 163, 184, 0.5);
-			background: rgba(15, 23, 42, 0.95);
-			color: var(--text-main);
+			border: 1px solid var(--grey);
+			background: var(--white);
+			color: var(--text-dark);
 			outline: none;
-			transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+			transition: border-color 0.15s ease, box-shadow 0.15s ease;
 		}
 
 		input[type="text"]:focus,
 		input[type="number"]:focus,
 		select:focus {
-			border-color: var(--accent);
-			box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.7);
-			background: rgba(15, 23, 42, 0.98);
+			border-color: var(--ubc-blue-light);
+			box-shadow: 0 0 0 3px rgba(0, 85, 183, 0.1);
 		}
 
 		input[type="file"] {
 			margin-top: 4px;
-			font-size: 0.8rem;
+			font-size: 0.85rem;
 			color: var(--text-muted);
 		}
 
 		/* 按钮 */
 		button {
-			margin-top: 10px;
-			padding: 7px 14px;
-			font-size: 0.86rem;
-			border-radius: 999px;
-			border: 1px solid var(--accent-strong);
-			background: radial-gradient(circle at top left, #38bdf8, #0ea5e9);
-			color: #0b1020;
-			font-weight: 500;
+			margin-top: 12px;
+			padding: 10px 20px;
+			font-size: 0.9rem;
+			border-radius: var(--radius-md);
+			border: none;
+			background: var(--ubc-blue);
+			color: var(--white);
+			font-weight: 600;
 			cursor: pointer;
 			display: inline-flex;
 			align-items: center;
-			gap: 6px;
-			transition:
-				transform 0.08s ease-out,
-				box-shadow 0.12s ease-out,
-				filter 0.1s ease-out,
-				background 0.15s ease;
-			box-shadow:
-				0 10px 25px rgba(56, 189, 248, 0.32),
-				0 0 0 1px rgba(15, 23, 42, 0.85);
+			gap: 8px;
+			transition: background 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+			box-shadow: 0 2px 4px rgba(0, 33, 69, 0.2);
 		}
 
 		button::after {
-			content: "↗";
-			font-size: 0.78rem;
-			opacity: 0.7;
+			content: "→";
+			font-size: 1rem;
+			opacity: 0.8;
 		}
 
 		button:hover:not(:disabled) {
+			background: var(--ubc-blue-light);
 			transform: translateY(-1px);
-			filter: brightness(1.05);
-			box-shadow:
-				0 16px 36px rgba(56, 189, 248, 0.45),
-				0 0 0 1px rgba(15, 23, 42, 1);
+			box-shadow: 0 4px 8px rgba(0, 85, 183, 0.3);
 		}
 
 		button:active:not(:disabled) {
 			transform: translateY(0);
-			box-shadow:
-				0 8px 18px rgba(56, 189, 248, 0.28),
-				0 0 0 1px rgba(15, 23, 42, 0.9);
+			box-shadow: 0 1px 2px rgba(0, 33, 69, 0.2);
 		}
 
 		button:disabled {
-			opacity: 0.6;
-			cursor: default;
-			box-shadow: none;
-			background: linear-gradient(to right, #4b5563, #374151);
-			border-color: #4b5563;
-			color: #d1d5db;
+			opacity: 0.5;
+			cursor: not-allowed;
+			background: var(--grey-dark);
 		}
 
 		.status {
-			margin-top: 6px;
-			font-size: 0.8rem;
+			margin-top: 8px;
+			font-size: 0.85rem;
 			color: var(--text-muted);
+			padding: 8px;
+			border-radius: 4px;
+			background: var(--grey-light);
 		}
 
 		table {
 			border-collapse: collapse;
-			margin-top: 10px;
+			margin-top: 12px;
 			width: 100%;
-			background: rgba(15, 23, 42, 0.92);
-			border-radius: 10px;
+			background: var(--white);
+			border-radius: var(--radius-md);
 			overflow: hidden;
-			border: 1px solid rgba(148, 163, 184, 0.35);
+			border: 1px solid var(--grey);
 		}
 
 		th, td {
-			border-bottom: 1px solid rgba(31, 41, 55, 0.85);
-			padding: 6px 10px;
-			font-size: 0.8rem;
+			border-bottom: 1px solid var(--grey);
+			padding: 10px 12px;
+			font-size: 0.85rem;
 			text-align: left;
 			white-space: nowrap;
 		}
 
 		th {
-			background: linear-gradient(to right, #020617, #020617);
-			color: #e5e7eb;
-			font-weight: 500;
+			background: var(--ubc-blue);
+			color: var(--white);
+			font-weight: 600;
 		}
 
 		tr:nth-child(even) td {
-			background: rgba(15, 23, 42, 0.9);
+			background: var(--grey-light);
 		}
 
 		tr:nth-child(odd) td {
-			background: rgba(15, 23, 42, 0.95);
+			background: var(--white);
+		}
+
+		tr:hover td {
+			background: rgba(0, 85, 183, 0.05);
 		}
 
 		pre {
-			background: rgba(15, 23, 42, 0.98);
-			color: #e5e7eb;
-			padding: 10px;
-			font-size: 0.78rem;
-			max-height: 260px;
+			background: var(--grey-light);
+			color: var(--text-dark);
+			padding: 12px;
+			font-size: 0.8rem;
+			max-height: 300px;
 			overflow: auto;
-			border-radius: 10px;
-			border: 1px solid rgba(148, 163, 184, 0.38);
+			border-radius: var(--radius-md);
+			border: 1px solid var(--grey);
 		}
 
-		@media (max-width: 720px) {
+		@media (max-width: 768px) {
 			main.page {
-				padding: 0 14px 24px;
+				padding: 0 16px 24px;
 			}
 
 			section.card {
-				padding: 12px 12px 14px;
+				padding: 16px 16px 20px;
 			}
 
 			.topbar-inner {
-				padding-inline: 14px;
+				padding: 10px 16px;
 			}
 
 			h1 {
-				font-size: 1.35rem;
+				font-size: 1.5rem;
+			}
+
+			.brand-logo {
+				width: 40px;
+				height: 40px;
 			}
 		}
 
 		.query-mode-toggle {
-			margin: 10px 0 8px;
+			margin: 12px 0 8px;
 			display: inline-flex;
 			gap: 8px;
 		}
 
 		.query-mode-btn {
-			background: transparent;
-			border-radius: 999px;
-			border: 1px solid rgba(148, 163, 184, 0.5);
-			color: var(--text-muted);
-			padding: 5px 12px;
-			font-size: 0.8rem;
+			background: var(--white);
+			border-radius: var(--radius-md);
+			border: 2px solid var(--grey);
+			color: var(--text-dark);
+			padding: 6px 16px;
+			font-size: 0.85rem;
+			font-weight: 500;
 			box-shadow: none;
+			transition: all 0.2s ease;
 		}
 
 		.query-mode-btn::after {
-			/* 覆盖通用 button 的箭头 */
 			content: "";
 		}
 
+		.query-mode-btn:hover:not(.active) {
+			border-color: var(--ubc-blue-light);
+			background: var(--grey-light);
+		}
+
 		.query-mode-btn.active {
-			background: var(--accent-soft);
-			color: var(--accent);
-			border-color: var(--accent);
+			background: var(--ubc-blue);
+			color: var(--white);
+			border-color: var(--ubc-blue);
 		}
 
 		th.sortable {
 			cursor: pointer;
 			user-select: none;
+			transition: background 0.2s ease;
+		}
+
+		th.sortable:hover {
+			background: var(--ubc-blue-light);
 		}
 
 		th.sortable .sort-arrow {
-			font-size: 0.7rem;
+			font-size: 0.75rem;
 			margin-left: 4px;
-			opacity: 0.8;
+			opacity: 0.9;
 		}
-
-
 	</style>
 </head>
 <body>
 <header class="topbar">
 	<div class="topbar-inner">
 		<div class="brand">
-			<div class="brand-logo"></div>
-			<div>
+			<div class="brand-logo">
+				<!-- UBC Logo - 你需要替换成实际的 logo 图片路径 -->
+				<img src="ubc-logo.png" alt="UBC Logo">
+			</div>
 				<div class="brand-title">
 					<span class="highlight">Section Insights</span> UI
 				</div>
@@ -490,47 +531,124 @@
 		<!-- Simple Query 面板 -->
 		<div id="simple-query-panel">
 			<p class="card-desc">
-				Simple Query：选一个院系（比如 <code>cpsc</code>），按课程号聚合平均分，
-				并按平均分从高到低排序。前端可以只展示前 N 门课。
+				Simple Query：先选择你想根据哪个字段过滤（如
+				<code>dept</code> / <code>id</code> / <code>instructor</code> / <code>year</code>），
+				再输入对应的值。结果仍然会按课程平均分从高到低排序，并只显示前 N 行。
 			</p>
 			<div class="row">
 				<div>
-					<label for="simple-dept">
-						Dept（例如 <code>cpsc</code>）
+					<label for="simple-field">
+						Filter Field
 					</label>
-					<input type="text" id="simple-dept" placeholder="cpsc" />
+					<select id="simple-field">
+						<option value="dept">Subject (dept)</option>
+						<option value="id">Course (id)</option>
+						<option value="instructor">Professor (instructor)</option>
+						<option value="year">Year</option>
+						<option value="uuid">id (uuid)</option>
+						<option value="title">Title</option>
+						<option value="avg">Avg</option>
+						<option value="pass">Pass</option>
+						<option value="fail">Fail</option>
+						<option value="audit">Audit</option>
+					</select>
+
+					<label for="simple-value">
+						Field Value（字符串会做 *模糊匹配*，数字直接用数值）
+					</label>
+					<input type="text" id="simple-value" placeholder="例如 cpsc / 110 / Smith / 2022" />
 
 					<label for="simple-top-n">
-						Top N（只显示前 N 门课）
+						Top N（只显示前 N 条记录）
 					</label>
 					<input type="number" id="simple-top-n" min="1" value="5" />
+
+					<label>
+						Columns to display（勾选你想看到的字段）
+					</label>
+					<div id="simple-columns">
+						<label><input type="checkbox" value="uuid" /> id (uuid)</label>
+						<label><input type="checkbox" value="id" checked /> Course (id)</label>
+						<label><input type="checkbox" value="title" checked /> Title</label>
+						<label><input type="checkbox" value="instructor" checked /> Professor</label>
+						<label><input type="checkbox" value="dept" checked /> Subject (dept)</label>
+						<label><input type="checkbox" value="year" checked /> Year</label>
+						<label><input type="checkbox" value="avg" checked /> Avg</label>
+						<label><input type="checkbox" value="pass" /> Pass</label>
+						<label><input type="checkbox" value="fail" /> Fail</label>
+						<label><input type="checkbox" value="audit" /> Audit</label>
+					</div>
 				</div>
 			</div>
 		</div>
 
+
 		<!-- Advanced Query 面板 -->
 		<div id="advanced-query-panel" style="display:none;">
 			<p class="card-desc">
-				Advanced Query：在指定院系里，查找
-				<strong>通过人数</strong>（pass）大于某个值，并且
-				<strong>平均分</strong> 大于某个值的 section。
+				Advanced Queryï¼šåœ¨æŒ‡å®šé™¢ç³»é‡Œï¼ŒæŸ¥æ‰¾
+				<strong>é€šè¿‡äººæ•°</strong>ï¼ˆpassï¼‰å¤§äºŽæŸä¸ªå€¼ï¼Œå¹¶ä¸"
+				<strong>å¹³å‡åˆ†</strong> å¤§äºŽæŸä¸ªå€¼çš„ sectionã€‚
 			</p>
+
 			<div class="row">
 				<div>
-					<label for="adv-dept">
-						Dept（例如 <code>cpsc</code>）
-					</label>
-					<input type="text" id="adv-dept" placeholder="cpsc" />
+					<label for="adv-dept">Subject (dept)</label>
+					<input type="text" id="adv-dept" placeholder="e.g. cpsc" />
 
-					<label for="adv-min-pass">
-						Min Pass（人数至少多少人，例如 <code>50</code>）
-					</label>
-					<input type="number" id="adv-min-pass" value="50" />
+					<label for="adv-instructor">Professor (instructor, wildcard supported)</label>
+					<input type="text" id="adv-instructor" placeholder="e.g. *Smith* or Smith" />
+				</div>
+				<div>
+					<label for="adv-year-min">Year Min (optional)</label>
+					<input type="number" id="adv-year-min" placeholder="e.g. 2020" />
 
-					<label for="adv-min-avg">
-						Min Avg（平均分至少多少，例如 <code>80</code>）
-					</label>
-					<input type="number" id="adv-min-avg" value="80" />
+					<label for="adv-year-max">Year Max (optional)</label>
+					<input type="number" id="adv-year-max" placeholder="e.g. 2023" />
+				</div>
+			</div>
+
+			<div class="row">
+				<div>
+					<label for="adv-min-pass">Min Pass Count</label>
+					<input type="number" id="adv-min-pass" placeholder="e.g. 50" />
+
+					<label for="adv-min-avg">Min Average</label>
+					<input type="number" id="adv-min-avg" placeholder="e.g. 75" />
+				</div>
+			</div>
+
+			<label>Columns to display</label>
+			<div id="adv-columns">
+				<label><input type="checkbox" value="uuid" /> id (uuid)</label>
+				<label><input type="checkbox" value="dept" checked /> dept</label>
+				<label><input type="checkbox" value="id" checked /> id</label>
+				<label><input type="checkbox" value="title" checked /> title</label>
+				<label><input type="checkbox" value="instructor" checked /> instructor</label>
+				<label><input type="checkbox" value="year" checked /> year</label>
+				<label><input type="checkbox" value="avg" checked /> avg</label>
+				<label><input type="checkbox" value="pass" /> pass</label>
+				<label><input type="checkbox" value="fail" /> fail</label>
+				<label><input type="checkbox" value="audit" /> audit</label>
+			</div>
+
+			<div class="row">
+				<div>
+					<label for="adv-order-key">Sort by</label>
+					<select id="adv-order-key">
+						<option value="avg">Avg</option>
+						<option value="year">Year</option>
+						<option value="pass">Pass</option>
+						<option value="fail">Fail</option>
+						<option value="audit">Audit</option>
+					</select>
+				</div>
+				<div>
+					<label for="adv-order-dir">Sort direction</label>
+					<select id="adv-order-dir">
+						<option value="DOWN">Descending (HIGH → LOW)</option>
+						<option value="UP">Ascending (LOW → HIGH)</option>
+					</select>
 				</div>
 			</div>
 		</div>
