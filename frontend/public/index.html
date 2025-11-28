@@ -2,12 +2,14 @@
 <html lang="en">
 <head>
 	<meta charset="UTF-8" />
+	<meta http-equiv="Content-Language" content="en" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<title>Section Insights UI</title>
 	<style>
 		:root {
-			/* UBC 配色方案 */
-			--ubc-blue: #002145;        /* UBC 深蓝色 */
-			--ubc-blue-light: #0055B7;  /* UBC 浅蓝色 */
+			/* UBC Color Scheme */
+			--ubc-blue: #002145;        /* UBC Dark Blue */
+			--ubc-blue-light: #0055B7;  /* UBC Light Blue */
 			--white: #ffffff;
 			--grey-light: #f8f9fa;
 			--grey: #e9ecef;
@@ -33,7 +35,7 @@
 			background: var(--grey-light);
 		}
 
-		/* 顶部导航 */
+		/* Top Navigation */
 		header.topbar {
 			position: sticky;
 			top: 0;
@@ -106,7 +108,7 @@
 			border: 1px solid rgba(255, 255, 255, 0.3);
 		}
 
-		/* 页面主体 */
+		/* Page Main Content */
 		main.page {
 			max-width: 1200px;
 			margin: 24px auto 40px;
@@ -165,7 +167,7 @@
 			font-weight: 500;
 		}
 
-		/* 卡片样式 */
+		/* Card Styles */
 		section.card {
 			background: var(--white);
 			border-radius: var(--radius-lg);
@@ -198,7 +200,7 @@
 			line-height: 1.5;
 		}
 
-		/* 表单布局 */
+		/* Form Layout */
 		.row {
 			display: flex;
 			flex-wrap: wrap;
@@ -240,12 +242,47 @@
 		}
 
 		input[type="file"] {
-			margin-top: 4px;
-			font-size: 0.85rem;
-			color: var(--text-muted);
+			position: absolute;
+			width: 0.1px;
+			height: 0.1px;
+			opacity: 0;
+			overflow: hidden;
+			z-index: -1;
 		}
 
-		/* 按钮 */
+		.file-input-wrapper {
+			position: relative;
+			display: inline-block;
+			width: 100%;
+		}
+
+		.file-input-label {
+			display: inline-block;
+			padding: 8px 16px;
+			font-size: 0.9rem;
+			border-radius: var(--radius-md);
+			border: 1px solid var(--grey);
+			background: var(--white);
+			color: var(--text-dark);
+			cursor: pointer;
+			transition: border-color 0.15s ease, box-shadow 0.15s ease;
+			width: 100%;
+			text-align: center;
+		}
+
+		.file-input-label:hover {
+			border-color: var(--ubc-blue-light);
+			box-shadow: 0 0 0 3px rgba(0, 85, 183, 0.1);
+		}
+
+		.file-name-display {
+			margin-top: 8px;
+			font-size: 0.85rem;
+			color: var(--text-muted);
+			font-style: italic;
+		}
+
+		/* Buttons */
 		button {
 			margin-top: 12px;
 			padding: 10px 20px;
@@ -420,7 +457,7 @@
 	<div class="topbar-inner">
 		<div class="brand">
 			<div class="brand-logo">
-				<!-- UBC Logo - 你需要替换成实际的 logo 图片路径 -->
+				<!-- UBC Logo - Replace with actual logo image path if needed -->
 				<img src="ubc-logo.png" alt="UBC Logo">
 			</div>
 				<div class="brand-title">
@@ -441,28 +478,32 @@
 		<span class="highlight">Dashboard</span>
 	</h1>
 	<p class="page-intro">
-		后端服务默认运行在 <code>http://localhost:4321</code>。
-		使用下面的卡片可以：添加 / 查看 / 删除数据集，以及运行几个常用的查询模板。
+		Backend service runs on <code>http://localhost:4321</code> by default.
+		Use the cards below to: add / view / remove datasets, and run common query templates.
 	</p>
 
-	<!-- 1. 上传 dataset -->
+	<!-- 1. Upload dataset -->
 	<section class="card">
 		<div class="card-header-line">
 			<h2>1. Add Dataset <span class="pill">sections.zip → addDataset</span></h2>
 		</div>
 		<p class="card-desc">
-			上传包含 UBC sections 的 <code>.zip</code> 文件，并为它指定一个 dataset id
-			（例如 <code>sections</code>）。这个 id 之后会作为查询前缀使用。
+			Upload a <code>.zip</code> file containing UBC sections and assign it a dataset id
+			(e.g., <code>sections</code>). This id will be used as a query prefix later.
 		</p>
 		<div class="row">
 			<div>
 				<label for="upload-dataset-id">
-					Dataset ID（例如：<code>sections</code>）
+					Dataset ID (e.g., <code>sections</code>)
 				</label>
 				<input type="text" id="upload-dataset-id" placeholder="sections" />
 
 				<label for="upload-dataset-file">Zip File</label>
-				<input type="file" id="upload-dataset-file" accept=".zip" />
+				<div class="file-input-wrapper">
+					<label for="upload-dataset-file" class="file-input-label">Choose File</label>
+					<input type="file" id="upload-dataset-file" accept=".zip" />
+					<div id="upload-file-name" class="file-name-display">No file chosen</div>
+				</div>
 
 				<button id="upload-btn">Upload Dataset</button>
 				<div id="upload-status" class="status"></div>
@@ -470,26 +511,26 @@
 		</div>
 	</section>
 
-	<!-- 2. 列出 datasets -->
+	<!-- 2. List datasets -->
 	<section class="card">
 		<div class="card-header-line">
 			<h2>2. List Datasets <span class="pill">listDatasets</span></h2>
 		</div>
 		<p class="card-desc">
-			查看当前服务器中有哪些 datasets，以及每个 dataset 的类型和行数。
+			View all datasets currently on the server, including each dataset's type and row count.
 		</p>
 		<button id="list-btn">Refresh Dataset List</button>
 		<div id="list-status" class="status"></div>
 		<div id="datasets-table-container"></div>
 	</section>
 
-	<!-- 3. 删除 dataset -->
+	<!-- 3. Remove dataset -->
 	<section class="card">
 		<div class="card-header-line">
 			<h2>3. Remove Dataset <span class="pill">removeDataset</span></h2>
 		</div>
 		<p class="card-desc">
-			输入要删除的 dataset id。通常可以先在「List Datasets」里确认名称，再执行删除。
+			Enter the dataset id to remove. You can usually confirm the name in "List Datasets" first, then proceed with removal.
 		</p>
 		<label for="remove-dataset-select">Dataset ID to remove</label>
 		<select id="remove-dataset-select">
@@ -500,25 +541,25 @@
 
 	</section>
 
-	<!-- 4. 经典查询 -->
+	<!-- 4. Query -->
 	<section class="card">
 		<div class="card-header-line">
 			<h2>4. Section Insights Queries <span class="pill">performQuery</span></h2>
 		</div>
 		<p class="card-desc">
-			这里把查询分成两类：<strong>Simple Query</strong> 用来做非常常见的查询，
-			比如某个院系里哪些课程平均分最高；<strong>Advanced Query</strong> 可以加上人数和分数的条件。
+			Queries are divided into two types: <strong>Simple Query</strong> for common queries,
+			such as finding courses with the highest average grades in a department; <strong>Advanced Query</strong> can add conditions for enrollment and grades.
 		</p>
 
-		<!-- 统一的 dataset 选择，下方简单/复杂查询都会用到 -->
+		<!-- Unified dataset selection, used by both simple and advanced queries below -->
 		<label for="query-dataset-select">
-			Dataset ID（要和你 addDataset 时保持一致）
+			Dataset ID (must match the id used when adding the dataset)
 		</label>
 		<select id="query-dataset-select">
 			<option value="">-- Select dataset --</option>
 		</select>
 
-		<!-- 模式切换按钮 -->
+		<!-- Mode toggle buttons -->
 		<div class="query-mode-toggle">
 			<button type="button" id="simple-query-btn" class="query-mode-btn active">
 				Simple Query
@@ -528,12 +569,12 @@
 			</button>
 		</div>
 
-		<!-- Simple Query 面板 -->
+		<!-- Simple Query Panel -->
 		<div id="simple-query-panel">
 			<p class="card-desc">
-				Simple Query：先选择你想根据哪个字段过滤（如
-				<code>dept</code> / <code>id</code> / <code>instructor</code> / <code>year</code>），
-				再输入对应的值。结果仍然会按课程平均分从高到低排序，并只显示前 N 行。
+				Simple Query: First select which field to filter by (e.g.,
+				<code>dept</code> / <code>id</code> / <code>instructor</code> / <code>year</code>),
+				then enter the corresponding value. Results will be sorted by course average from high to low, showing only the top N rows.
 			</p>
 			<div class="row">
 				<div>
@@ -554,17 +595,17 @@
 					</select>
 
 					<label for="simple-value">
-						Field Value（字符串会做 *模糊匹配*，数字直接用数值）
+						Field Value (strings use *wildcard matching*, numbers use exact values)
 					</label>
-					<input type="text" id="simple-value" placeholder="例如 cpsc / 110 / Smith / 2022" />
+					<input type="text" id="simple-value" placeholder="e.g., cpsc / 110 / Smith / 2022" />
 
 					<label for="simple-top-n">
-						Top N（只显示前 N 条记录）
+						Top N (show only the first N records)
 					</label>
 					<input type="number" id="simple-top-n" min="1" value="5" />
 
 					<label>
-						Columns to display（勾选你想看到的字段）
+						Columns to display (check the fields you want to see)
 					</label>
 					<div id="simple-columns">
 						<label><input type="checkbox" value="uuid" /> id (uuid)</label>
@@ -583,12 +624,12 @@
 		</div>
 
 
-		<!-- Advanced Query 面板 -->
+		<!-- Advanced Query Panel -->
 		<div id="advanced-query-panel" style="display:none;">
 			<p class="card-desc">
-				Advanced Queryï¼šåœ¨æŒ‡å®šé™¢ç³»é‡Œï¼ŒæŸ¥æ‰¾
-				<strong>é€šè¿‡äººæ•°</strong>ï¼ˆpassï¼‰å¤§äºŽæŸä¸ªå€¼ï¼Œå¹¶ä¸"
-				<strong>å¹³å‡åˆ†</strong> å¤§äºŽæŸä¸ªå€¼çš„ sectionã€‚
+				Advanced Query: In a specified department, find sections where
+				<strong>pass count</strong> (pass) is greater than a certain value, and
+				<strong>average grade</strong> is greater than a certain value.
 			</p>
 
 			<div class="row">
