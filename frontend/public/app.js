@@ -1,14 +1,14 @@
 // frontend/public/app.js
 
-// 如果前端是直接用文件打开 / 用另一个 dev server，
-// 就走完整 URL。如果你以后把前端也挂在 4321 端口下，
-// 可以把 baseUrl 改成空字符串 ""。
+// If the frontend is opened directly as a file / using another dev server,
+// use the full URL. If you later host the frontend on port 4321,
+// you can change baseUrl to an empty string "".
 const baseUrl = "http://localhost:4321";
 let simpleQueryRows = [];
-let simpleSortDirection = "DESC"; // 初始和后端一样：按 avg 从高到低
-let simpleSortKey = "avgMark";     // 当前按哪一列排序
+let simpleSortDirection = "DESC"; // Initial: same as backend, sort by avg from high to low
+let simpleSortKey = "avgMark";     // Current column being sorted
 
-// Sections 所有字段的元数据（来自产品手册）
+// Metadata for all Section fields (from product manual)
 const SECTION_FIELDS = [
 	{ id: "uuid", label: "id (uuid)", type: "string" },
 	{ id: "id", label: "Course (id)", type: "string" },
@@ -29,7 +29,7 @@ const SECTION_NUMBER_FIELDS = new Set(
 	SECTION_FIELDS.filter((f) => f.type === "number").map((f) => f.id)
 );
 
-// 选择一个“默认排序字段”：优先 avg，其次 year，再其次第一个
+// Choose a "default sort field": prioritize avg, then year, then the first one
 function chooseDefaultOrderField(columnKeys) {
 	const cols = columnKeys && columnKeys.length
 		? columnKeys
@@ -40,7 +40,7 @@ function chooseDefaultOrderField(columnKeys) {
 	return cols[0];
 }
 
-// ========= 工具函数 =========
+// ========= Utility Functions =========
 function setStatus(id, message, isError = false) {
 	const el = document.getElementById(id);
 	if (!el) return;
@@ -63,7 +63,7 @@ function renderAdvancedQueryTable(containerId, rows) {
 
 	const keys = Object.keys(rows[0]);
 
-	// 表头
+	// Table header
 	const headerRow = document.createElement("tr");
 	keys.forEach((key) => {
 		const th = document.createElement("th");
@@ -72,7 +72,7 @@ function renderAdvancedQueryTable(containerId, rows) {
 	});
 	thead.appendChild(headerRow);
 
-	// 数据
+	// Data rows
 	rows.forEach((row) => {
 		const tr = document.createElement("tr");
 		keys.forEach((key) => {
@@ -89,7 +89,7 @@ function renderAdvancedQueryTable(containerId, rows) {
 }
 
 
-// ========= simple query 专用表格渲染（带可点击排序列） =========
+// ========= Simple query table rendering (with clickable sortable columns) =========
 function renderSimpleQueryTable(containerId, rows) {
 	const container = document.getElementById("query-table-container");
 	container.innerHTML = "";
@@ -99,7 +99,7 @@ function renderSimpleQueryTable(containerId, rows) {
 		return;
 	}
 
-// 获取 Top N 设置
+	// Get Top N setting
 	const topN = parseInt(document.getElementById("simple-top-n").value, 10) || 5;
 
 	const table = document.createElement("table");
@@ -108,10 +108,10 @@ function renderSimpleQueryTable(containerId, rows) {
 
 	const keys = Object.keys(rows[0]);
 
-	// 哪些列可排序：sections_id / avgMark
+	// Which columns are sortable: sections_id / avgMark
 	const sortableKeys = new Set(keys);
 
-	// 表头
+	// Table header
 	const headerRow = document.createElement("tr");
 	keys.forEach((key) => {
 		const th = document.createElement("th");
@@ -126,7 +126,7 @@ function renderSimpleQueryTable(containerId, rows) {
 			const arrowSpan = document.createElement("span");
 			arrowSpan.className = "sort-arrow";
 
-			// 当前正在按哪一列排，就显示 ▲ / ▼，否则用一个淡淡的双箭头
+			// If currently sorting by this column, show ▲ / ▼, otherwise show a faint double arrow
 			if (key === simpleSortKey) {
 				arrowSpan.textContent =
 					simpleSortDirection === "ASC" ? "▲" : "▼";
@@ -138,24 +138,24 @@ function renderSimpleQueryTable(containerId, rows) {
 			th.appendChild(labelSpan);
 			th.appendChild(arrowSpan);
 
-			// 点击切换排序
+			// Click to toggle sort
 			th.addEventListener("click", () => {
 				if (simpleSortKey === key) {
-					// 再点同一列 → 翻转方向
+					// Click same column again → flip direction
 					simpleSortDirection =
 						simpleSortDirection === "ASC" ? "DESC" : "ASC";
 				} else {
-					// 换到另一列 → 默认升序（你想默认降序也可以）
+					// Switch to another column → default ascending (you can change to descending if preferred)
 					simpleSortKey = key;
 					simpleSortDirection = "ASC";
 				}
 
-				// ⭐ 关键修改：对完整数据排序
+				// ⭐ Key modification: sort full data
 				simpleQueryRows.sort((a, b) => {
 					const av = Number(a[simpleSortKey]);
 					const bv = Number(b[simpleSortKey]);
 
-					// 优先按数字排，如果不是数字再按字符串排
+					// Prioritize numeric sorting, fall back to string sorting if not numeric
 					if (!Number.isNaN(av) && !Number.isNaN(bv)) {
 						return simpleSortDirection === "ASC"
 							? av - bv
@@ -168,12 +168,12 @@ function renderSimpleQueryTable(containerId, rows) {
 							: bs.localeCompare(as);
 					}
 				});
-				// ⭐ 排序后只取前 N 行显示
+				// ⭐ After sorting, only take the first N rows to display
 				const displayRows = simpleQueryRows.slice(0, topN);
 
-				// 更新状态信息
+				// Update status message
 				setStatus("query-status", `Query success. Showing ${displayRows.length} of ${simpleQueryRows.length} row(s).`);
-				// 用新的顺序重新渲染
+				// Re-render with new order
 				renderSimpleQueryTable(containerId, displayRows);
 			});
 		} else {
@@ -184,7 +184,7 @@ function renderSimpleQueryTable(containerId, rows) {
 	});
 	thead.appendChild(headerRow);
 
-	// 数据
+	// Data rows
 	rows.forEach((row) => {
 		const tr = document.createElement("tr");
 		keys.forEach((key) => {
@@ -211,7 +211,7 @@ function updateDatasetDropdowns(datasets) {
 	const selects = [removeSelect, querySelect];
 
 	selects.forEach((sel) => {
-		const previous = sel.value; // 记住之前选中的 id
+		const previous = sel.value; // Remember previously selected id
 		sel.innerHTML = "";
 
 		const placeholder = document.createElement("option");
@@ -237,7 +237,7 @@ function updateDatasetDropdowns(datasets) {
 }
 
 
-// ========= 1. 上传 dataset =========
+// ========= 1. Upload dataset =========
 async function uploadDataset() {
 	const idInput = document.getElementById("upload-dataset-id");
 	const fileInput = document.getElementById("upload-dataset-file");
@@ -267,7 +267,7 @@ async function uploadDataset() {
 
 		if (res.ok) {
 			setStatus("upload-status", `Upload success. Datasets: ${JSON.stringify(json.result)}`);
-			// ✅ 上传成功后，自动刷新 List Datasets
+			// ✅ After successful upload, automatically refresh List Datasets
 			await listDatasets();
 		} else {
 			setStatus(
@@ -284,7 +284,7 @@ async function uploadDataset() {
 	}
 }
 
-// ========= 2. 列出 datasets =========
+// ========= 2. List datasets =========
 async function listDatasets() {
 	setStatus("list-status", "Loading...");
 	try {
@@ -296,7 +296,7 @@ async function listDatasets() {
 			const datasets = json.result || [];
 			renderAdvancedQueryTable("datasets-table-container", datasets);
 
-			// ✅ 用新的数据更新两个下拉菜单
+			// ✅ Update both dropdown menus with new data
 			updateDatasetDropdowns(datasets);
 		} else {
 			setStatus("list-status", `Error: ${json.error || res.statusText}`, true);
@@ -307,11 +307,11 @@ async function listDatasets() {
 	}
 }
 
-// ========= 3. 删除 dataset =========
+// ========= 3. Remove dataset =========
 async function removeDataset() {
 	const select = document.getElementById("remove-dataset-select");
 
-	// 从下拉框里拿 value（就是纯 id，比如 "333"）
+	// Get value from dropdown (pure id, e.g., "333")
 	const id = (select && select.value) ? select.value.trim() : "";
 
 	if (!id) {
@@ -330,7 +330,7 @@ async function removeDataset() {
 
 		if (res.ok) {
 			setStatus("remove-status", `Removed dataset: ${json.result}`);
-			await listDatasets(); // ✅ 删除成功后刷新列表和下拉菜单
+			await listDatasets(); // ✅ After successful removal, refresh list and dropdown menus
 		} else {
 			setStatus(
 				"remove-status",
@@ -345,19 +345,19 @@ async function removeDataset() {
 }
 
 
-// ========= 4. 查询（Simple / Advanced） =========
+// ========= 4. Query (Simple / Advanced) =========
 
-// Simple：单字段过滤，返回原始 section 行，按一个合适的数值字段降序排序
+// Simple: single field filter, returns original section rows, sorted by a suitable numeric field in descending order
 function buildSimpleQuery(datasetId, fieldKey, fieldValue, columnKeys) {
 	const p = `${datasetId}_`;
 
-	// 1. WHERE：根据字段类型选择 IS / EQ
+	// 1. WHERE: choose IS / EQ based on field type
 	let where = {};
 	if (fieldKey && fieldValue !== "") {
 		const fullKey = `${p}${fieldKey}`;
 
 		if (SECTION_STRING_FIELDS.has(fieldKey)) {
-			// 字符串 → 模糊匹配 *value*
+			// String → wildcard match *value*
 			const pattern = fieldValue.includes("*")
 				? fieldValue
 				: `*${fieldValue}*`;
@@ -371,14 +371,14 @@ function buildSimpleQuery(datasetId, fieldKey, fieldValue, columnKeys) {
 		}
 	}
 
-	// 2. COLUMNS：根据用户勾选
+	// 2. COLUMNS: based on user selection
 	const cols =
 		columnKeys && columnKeys.length
 			? columnKeys
 			: ["dept", "id", "title", "avg"];
 	const columns = cols.map((c) => `${p}${c}`);
 
-	// 3. ORDER：默认字段（avg → year → 第一个）
+	// 3. ORDER: default field (avg → year → first)
 	const orderField = chooseDefaultOrderField(cols);
 	const orderKeyFull = `${p}${orderField}`;
 	if (!columns.includes(orderKeyFull)) {
@@ -398,8 +398,8 @@ function buildSimpleQuery(datasetId, fieldKey, fieldValue, columnKeys) {
 }
 
 
-// Advanced：组合多个条件（dept / instructor / year range / minPass / minAvg）
-// 返回原始 section 行，不做 TRANSFORMATIONS
+// Advanced: combine multiple conditions (dept / instructor / year range / minPass / minAvg)
+// Returns original section rows, no TRANSFORMATIONS
 function buildAdvancedQuery(datasetId, options) {
 	const p = `${datasetId}_`;
 	const filters = [];
@@ -435,14 +435,14 @@ function buildAdvancedQuery(datasetId, options) {
 
 	let where;
 	if (filters.length === 0) {
-		where = {}; // 无条件 → 全部 section
+		where = {}; // No conditions → all sections
 	} else if (filters.length === 1) {
 		where = filters[0];
 	} else {
 		where = { AND: filters };
 	}
 
-	// COLUMNS：根据用户勾选
+	// COLUMNS: based on user selection
 	const cols =
 		options.columns && options.columns.length
 			? options.columns
@@ -450,7 +450,7 @@ function buildAdvancedQuery(datasetId, options) {
 
 	const columns = cols.map((c) => `${p}${c}`);
 
-	// ORDER：用 UI 里选的字段
+	// ORDER: use field selected in UI
 	const orderField = options.orderKey || "avg";
 	const orderDir = options.orderDir || "DOWN";
 	const orderKeyFull = `${p}${orderField}`;
@@ -505,7 +505,7 @@ async function runQuery() {
 	}
 
 	let query;
-	let topN = undefined; // simple 模式下会用到
+	let topN = undefined; // Used in simple mode
 
 	try {
 		if (currentQueryMode === "simple") {
@@ -525,7 +525,7 @@ async function runQuery() {
 				return;
 			}
 
-			// 收集 simple 列选择
+			// Collect simple column selections
 			const colCheckboxes = document.querySelectorAll(
 				"#simple-columns input[type='checkbox']"
 			);
@@ -544,13 +544,13 @@ async function runQuery() {
 
 			query = buildSimpleQuery(datasetId, fieldKey, fieldValue, selectedColumns);
 
-			// 为前端表格记住默认排序 key（要和 buildSimpleQuery 的逻辑一致）
+			// Remember default sort key for frontend table (must match buildSimpleQuery logic)
 			const orderField = chooseDefaultOrderField(selectedColumns);
 			simpleSortKey = `${datasetId}_${orderField}`;
 			simpleSortDirection = "DESC";
 
 		} else {
-			// === Advanced 分支 ===
+			// === Advanced branch ===
 			const dept = (document.getElementById("adv-dept").value || "").trim();
 			const instructor = (document.getElementById("adv-instructor").value || "").trim();
 
@@ -564,7 +564,7 @@ async function runQuery() {
 			const minPass = minPassStr === "" ? undefined : Number(minPassStr);
 			const minAvg = minAvgStr === "" ? undefined : Number(minAvgStr);
 
-			// 数字校验
+			// Number validation
 			if (
 				(yearMinStr !== "" && Number.isNaN(yearMin)) ||
 				(yearMaxStr !== "" && Number.isNaN(yearMax)) ||
@@ -579,7 +579,7 @@ async function runQuery() {
 				return;
 			}
 
-			// 收集列选择
+			// Collect column selections
 			const colCheckboxes = document.querySelectorAll(
 				"#adv-columns input[type='checkbox']"
 			);
@@ -596,7 +596,7 @@ async function runQuery() {
 				return;
 			}
 
-			// 排序选择（如果下拉框不存在，就用默认 avg / DOWN）
+			// Sort selection (if dropdown doesn't exist, use default avg / DOWN)
 			let orderKey = "avg";
 			let orderDir = "DOWN";
 
@@ -610,7 +610,7 @@ async function runQuery() {
 				orderDir = orderDirEl.value;
 			}
 
-// 构建高级查询
+			// Build advanced query
 			query = buildAdvancedQuery(datasetId, {
 				dept,
 				instructor,
@@ -648,12 +648,12 @@ async function runQuery() {
 		if (res.ok) {
 			let allRows = json.result || [];
 
-			// ⭐ 关键修改：在 Simple 模式下
+			// ⭐ Key modification: in Simple mode
 			if (currentQueryMode === "simple") {
-				// 1. 先保存完整数据到全局变量
+				// 1. First save full data to global variable
 				simpleQueryRows = allRows.slice();
 
-				// 2. 重置排序状态
+				// 2. Reset sort state
 				const orderField = chooseDefaultOrderField(
 					Array.from(document.querySelectorAll("#simple-columns input[type='checkbox']"))
 						.filter(cb => cb.checked)
@@ -662,7 +662,7 @@ async function runQuery() {
 				simpleSortKey = `${datasetId}_${orderField}`;
 				simpleSortDirection = "DESC";
 
-				// 3. 只截取前 N 行用于显示
+				// 3. Only take first N rows for display
 				const displayRows = typeof topN === "number" && allRows.length > topN
 					? allRows.slice(0, topN)
 					: allRows;
@@ -685,24 +685,38 @@ async function runQuery() {
 }
 
 
-// ========= 事件绑定 =========
+// ========= Event Bindings =========
 window.addEventListener("DOMContentLoaded", () => {
 	document.getElementById("upload-btn").addEventListener("click", uploadDataset);
 	document.getElementById("list-btn").addEventListener("click", listDatasets);
 	document.getElementById("remove-btn").addEventListener("click", removeDataset);
 	document.getElementById("run-query-btn").addEventListener("click", runQuery);
 
-	// 模式切换按钮
+	// Update file name display when file is selected
+	const fileInput = document.getElementById("upload-dataset-file");
+	const fileNameDisplay = document.getElementById("upload-file-name");
+	if (fileInput && fileNameDisplay) {
+		fileInput.addEventListener("change", (e) => {
+			const file = e.target.files[0];
+			if (file) {
+				fileNameDisplay.textContent = `Selected: ${file.name}`;
+			} else {
+				fileNameDisplay.textContent = "No file chosen";
+			}
+		});
+	}
+
+	// Mode toggle buttons
 	const simpleBtn = document.getElementById("simple-query-btn");
 	const advBtn = document.getElementById("advanced-query-btn");
 	if (simpleBtn && advBtn) {
 		simpleBtn.addEventListener("click", () => switchQueryMode("simple"));
 		advBtn.addEventListener("click", () => switchQueryMode("advanced"));
-		// 默认简单查询
+		// Default to simple query
 		switchQueryMode("simple");
 	}
 
 
-	// 页面加载时自动刷新一次 dataset 列表
+	// Automatically refresh dataset list once when page loads
 	listDatasets().catch(() => {});
 });
