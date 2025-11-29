@@ -450,6 +450,26 @@
 			margin-left: 4px;
 			opacity: 0.9;
 		}
+		.insights-grid {
+			margin-top: 12px;
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+			gap: 16px;
+		}
+
+		.insight-card {
+			background: var(--grey-light);
+			border-radius: var(--radius-md);
+			border: 1px solid var(--grey);
+			padding: 12px;
+		}
+
+		.insight-card canvas {
+			width: 100%;
+			max-width: 100%;
+			display: block;
+		}
+
 	</style>
 </head>
 <body>
@@ -698,12 +718,36 @@
 		<div id="query-status" class="status"></div>
 		<div id="query-table-container"></div>
 
-		<h3 style="margin-top: 12px; font-size: 0.9rem;">Raw JSON Result</h3>
-		<pre id="query-json-output">// result will show here</pre>
+
+		<!-- ==== New: Visual Insights for current query result ==== -->
+		<h3 style="margin-top: 16px; font-size: 1rem;">Visual Insights (current dataset)</h3>
+		<p class="card-desc">
+			After running a query, we visualize the current result set below:
+			top courses by average grade, pass/fail distribution, and grade trends over time.
+		</p>
+		<div id="insights-status" class="status">Run a query to see charts.</div>
+
+		<div class="insights-grid">
+			<div class="insight-card">
+				<h4 style="margin: 0 0 8px; font-size: 0.9rem;">Top Courses by Average Grade</h4>
+				<canvas id="chart-avg-by-course" width="400" height="220"></canvas>
+			</div>
+			<div class="insight-card">
+				<h4 style="margin: 0 0 8px; font-size: 0.9rem;">Pass vs Fail (Total Students)</h4>
+				<canvas id="chart-pass-fail" width="400" height="220"></canvas>
+			</div>
+			<div class="insight-card">
+				<h4 style="margin: 0 0 8px; font-size: 0.9rem;">Average Grade by Year</h4>
+				<canvas id="chart-year-avg" width="400" height="220"></canvas>
+			</div>
+		</div>
+		<!-- ==== end new charts ==== -->
 	</section>
+
 
 </main>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
