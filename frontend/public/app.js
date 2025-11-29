@@ -7,6 +7,10 @@ const baseUrl = "http://localhost:4321";
 let simpleQueryRows = [];
 let simpleSortDirection = "DESC"; // Initial: same as backend, sort by avg from high to low
 let simpleSortKey = "avgMark";     // Current column being sorted
+// Charts for visual insights
+let chartAvgByCourse = null;
+let chartPassFail = null;
+let chartYearTrend = null;
 
 // Metadata for all Section fields (from product manual)
 const SECTION_FIELDS = [
@@ -28,6 +32,21 @@ const SECTION_STRING_FIELDS = new Set(
 const SECTION_NUMBER_FIELDS = new Set(
 	SECTION_FIELDS.filter((f) => f.type === "number").map((f) => f.id)
 );
+
+function destroyInsightCharts() {
+	if (chartAvgByCourse) {
+		chartAvgByCourse.destroy();
+		chartAvgByCourse = null;
+	}
+	if (chartPassFail) {
+		chartPassFail.destroy();
+		chartPassFail = null;
+	}
+	if (chartYearTrend) {
+		chartYearTrend.destroy();
+		chartYearTrend = null;
+	}
+}
 
 // Choose a "default sort field": prioritize avg, then year, then the first one
 function chooseDefaultOrderField(columnKeys) {
@@ -200,6 +219,206 @@ function renderSimpleQueryTable(containerId, rows) {
 	container.appendChild(table);
 }
 
+function updateInsightCharts(rows, datasetId) {
+	const statusEl = document.getElementById("insights-status");
+	if (!statusEl) {
+		return;
+	}
+
+	destroyInsightCharts();
+
+	if (!rows || rows.length === 0) {
+		statusEl.textContent = "No data to draw insights. Run a query first.";
+		destroyInsightCharts();
+		return;
+	}
+
+	if (typeof Chart === "undefined") {
+		console.warn("Chart.js not loaded; cannot render charts.");
+		statusEl.textContent = "Chart library not loaded.";
+		return;
+	}
+
+	const prefix = `${datasetId}_`;
+	statusEl.textContent = `Showing visual insights for dataset "${datasetId}" (current query result).`;
+
+	// ========= Chart 1: Top courses by average grade =========
+	const rowsWithAvg = rows
+		.map((r) => {
+			const avgVal = Number(r[`${prefix}avg`]);
+			return {
+				row: r,
+				avg: avgVal
+			};
+		})
+		.filter((x) => !Number.isNaN(x.avg));
+
+	if (rowsWithAvg.length > 0) {
+		const sorted = rowsWithAvg.sort((a, b) => b.avg - a.avg);
+		const top = sorted.slice(0, 10);
+
+		const labels = top.map((x) => {
+			const dept = x.row[`${prefix}dept`] || "";
+			const id = x.row[`${prefix}id`] || "";
+			const uuid = x.row[`${prefix}uuid`] || "";
+			const label = `${dept} ${id}`.trim();
+			return label || uuid || "N/A";
+		});
+		const data = top.map((x) => x.avg);
+
+		const canvas1 = document.getElementById("chart-avg-by-course");
+		if (canvas1) {
+			const ctx1 = canvas1.getContext("2d");
+			if (chartAvgByCourse) chartAvgByCourse.destroy();
+			chartAvgByCourse = new Chart(ctx1, {
+				type: "bar",
+				data: {
+					labels,
+					datasets: [
+						{
+							label: "Average grade",
+							data
+						}
+					]
+				},
+				options: {
+					responsive: false,
+					animation: false,
+					plugins: {
+						legend: { display: true }
+					},
+					scales: {
+						y: {
+							beginAtZero: true,
+							title: { display: true, text: "Avg" }
+						},
+						x: {
+							ticks: { autoSkip: true, maxRotation: 45, minRotation: 0 }
+						}
+					}
+				}
+			});
+		}
+	} else {
+		// 没有 avg 列时，清理图表
+		if (chartAvgByCourse) {
+			chartAvgByCourse.destroy();
+			chartAvgByCourse = null;
+		}
+	}
+
+	// ========= Chart 2: Pass vs Fail vs Audit (total students) =========
+	let passSum = 0;
+	let failSum = 0;
+	let auditSum = 0;
+
+	rows.forEach((r) => {
+		const pVal = Number(r[`${prefix}pass`]);
+		const fVal = Number(r[`${prefix}fail`]);
+		const aVal = Number(r[`${prefix}audit`]);
+		if (!Number.isNaN(pVal)) passSum += pVal;
+		if (!Number.isNaN(fVal)) failSum += fVal;
+		if (!Number.isNaN(aVal)) auditSum += aVal;
+	});
+
+	if (passSum + failSum + auditSum > 0) {
+		const canvas2 = document.getElementById("chart-pass-fail");
+		if (canvas2) {
+			const ctx2 = canvas2.getContext("2d");
+			if (chartPassFail) chartPassFail.destroy();
+			chartPassFail = new Chart(ctx2, {
+				type: "doughnut",
+				data: {
+					labels: ["Pass", "Fail", "Audit"],
+					datasets: [
+						{
+							data: [passSum, failSum, auditSum]
+						}
+					]
+				},
+				options: {
+					responsive: false,
+					animation: false,
+					plugins: {
+						legend: {
+							position: "bottom"
+						}
+					}
+				}
+			});
+		}
+	} else {
+		if (chartPassFail) {
+			chartPassFail.destroy();
+			chartPassFail = null;
+		}
+	}
+
+	// ========= Chart 3: Average grade by year =========
+	const yearMap = new Map(); // year -> { sum, count }
+
+	rows.forEach((r) => {
+		const y = Number(r[`${prefix}year`]);
+		const a = Number(r[`${prefix}avg`]);
+		if (!Number.isNaN(y) && !Number.isNaN(a)) {
+			if (!yearMap.has(y)) {
+				yearMap.set(y, { sum: 0, count: 0 });
+			}
+			const obj = yearMap.get(y);
+			obj.sum += a;
+			obj.count += 1;
+		}
+	});
+
+	if (yearMap.size > 0) {
+		const years = Array.from(yearMap.keys()).sort((a, b) => a - b);
+		const avgByYear = years.map((y) => {
+			const info = yearMap.get(y);
+			return info.sum / info.count;
+		});
+
+		const canvas3 = document.getElementById("chart-year-avg");
+		if (canvas3) {
+			const ctx3 = canvas3.getContext("2d");
+			if (chartYearTrend) chartYearTrend.destroy();
+			chartYearTrend = new Chart(ctx3, {
+				type: "line",
+				data: {
+					labels: years,
+					datasets: [
+						{
+							label: "Average grade",
+							data: avgByYear,
+							tension: 0.2
+						}
+					]
+				},
+				options: {
+					responsive: false,
+					animation: false,
+					plugins: {
+						legend: { display: true }
+					},
+					scales: {
+						x: {
+							title: { display: true, text: "Year" }
+						},
+						y: {
+							beginAtZero: true,
+							title: { display: true, text: "Avg" }
+						}
+					}
+				}
+			});
+		}
+	} else {
+		if (chartYearTrend) {
+			chartYearTrend.destroy();
+			chartYearTrend = null;
+		}
+	}
+}
+
 
 function updateDatasetDropdowns(datasets) {
 	const removeSelect = document.getElementById("remove-dataset-select");
@@ -267,7 +486,7 @@ async function uploadDataset() {
 
 		if (res.ok) {
 			setStatus("upload-status", `Upload success. Datasets: ${JSON.stringify(json.result)}`);
-			// ✅ After successful upload, automatically refresh List Datasets
+			// After successful upload, automatically refresh List Datasets
 			await listDatasets();
 		} else {
 			setStatus(
@@ -296,7 +515,7 @@ async function listDatasets() {
 			const datasets = json.result || [];
 			renderAdvancedQueryTable("datasets-table-container", datasets);
 
-			// ✅ Update both dropdown menus with new data
+			//  Update both dropdown menus with new data
 			updateDatasetDropdowns(datasets);
 		} else {
 			setStatus("list-status", `Error: ${json.error || res.statusText}`, true);
@@ -330,7 +549,7 @@ async function removeDataset() {
 
 		if (res.ok) {
 			setStatus("remove-status", `Removed dataset: ${json.result}`);
-			await listDatasets(); // ✅ After successful removal, refresh list and dropdown menus
+			await listDatasets(); // After successful removal, refresh list and dropdown menus
 		} else {
 			setStatus(
 				"remove-status",
@@ -642,8 +861,6 @@ async function runQuery() {
 
 		const json = await res.json().catch(() => ({}));
 
-		document.getElementById("query-json-output").textContent =
-			JSON.stringify(json, null, 2);
 
 		if (res.ok) {
 			let allRows = json.result || [];
@@ -673,8 +890,15 @@ async function runQuery() {
 				setStatus("query-status", `Query success. ${allRows.length} row(s).`);
 				renderAdvancedQueryTable("query-table-container", allRows);
 			}
+			updateInsightCharts(allRows, datasetId);
+
 		} else {
 			setStatus("query-status", `Query failed: ${json.error || res.statusText}`, true);
+			destroyInsightCharts();
+			const statusEl = document.getElementById("insights-status");
+			if (statusEl) {
+				statusEl.textContent = "Query failed; no insights to show.";
+			}
 		}
 	} catch (e) {
 		console.error(e);
