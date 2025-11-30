@@ -1,7 +1,7 @@
 // src/rest/Server.ts
 import express, { Express, Request, Response } from "express";
 import cors from "cors";
-
+import { Server as HttpServer } from "http";
 // 根据你的项目结构，controller 在上一级目录
 import InsightFacade from "../controller/InsightFacade";
 import { InsightDatasetKind, InsightError, NotFoundError } from "../controller/IInsightFacade";
@@ -10,6 +10,8 @@ export default class Server {
 	private port: number;
 	private express: Express;
 	private insightFacade: InsightFacade;
+
+	private server: HttpServer | null = null; // ⭐ 新增
 
 	constructor(port: number) {
 		this.port = port;
@@ -36,6 +38,25 @@ export default class Server {
 				.on("error", (err) => {
 					reject(err);
 				});
+		});
+	}
+
+	public stop(): Promise<void> {
+		return new Promise((resolve, reject) => {
+			if (!this.server) {
+				// 还没 start 过，直接 resolve 就行
+				resolve();
+				return;
+			}
+
+			this.server.close((err) => {
+				if (err) {
+					reject(err);
+				} else {
+					this.server = null;
+					resolve();
+				}
+			});
 		});
 	}
 
