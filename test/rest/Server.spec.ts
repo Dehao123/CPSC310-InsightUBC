@@ -12,7 +12,6 @@ describe("Server integration tests", function () {
 
 	let agent: any;
 
-
 	before(async () => {
 		if (fs.existsSync("./data")) {
 			fs.rmSync("./data", { recursive: true, force: true });
@@ -25,11 +24,9 @@ describe("Server integration tests", function () {
 		agent = request(server.getExpress());
 	});
 
-
 	after(async () => {
 		await server.stop();
 	});
-
 
 	it("US1: PUT /api/v1/datasets/sections should add sections dataset", async () => {
 		const zip = fs.readFileSync("./test/resources/archives/pair.zip");
@@ -45,7 +42,6 @@ describe("Server integration tests", function () {
 		expect(res.body.result).to.include("sections");
 	});
 
-
 	it("US2: GET /api/v1/datasets should include sections dataset", async () => {
 		const res = await agent.get("/api/v1/datasets");
 
@@ -60,7 +56,6 @@ describe("Server integration tests", function () {
 		expect(sections.kind).to.equal("sections");
 		expect(sections.numRows).to.be.greaterThan(0);
 	});
-
 
 	it("US3: POST /api/v1/query should return avg grade per dept in descending order", async () => {
 		const query = {
@@ -95,8 +90,6 @@ describe("Server integration tests", function () {
 		}
 	});
 
-
-
 	it("US3-invalid: POST /api/v1/query should return 400 for invalid query", async () => {
 		const badQuery = {
 			OPTIONS: {
@@ -109,7 +102,6 @@ describe("Server integration tests", function () {
 		expect(res.status).to.equal(400);
 		expect(res.body).to.have.property("error");
 	});
-
 
 	it("US4: DELETE /api/v1/datasets/sections should remove dataset", async () => {
 		const res = await agent.delete("/api/v1/datasets/sections");

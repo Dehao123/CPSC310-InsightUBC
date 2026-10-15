@@ -1,9 +1,7 @@
 // frontend/public/app.js
 
-// If the frontend is opened directly as a file / using another dev server,
-// use the full URL. If you later host the frontend on port 4321,
-// you can change baseUrl to an empty string "".
-const baseUrl = "http://localhost:4321";
+// Same origin when opened at http://localhost:4321; use full URL for file:// opens.
+const baseUrl = window.location.protocol === "file:" ? "http://localhost:4321" : "";
 let simpleQueryRows = [];
 let simpleSortDirection = "DESC"; // Initial: same as backend, sort by avg from high to low
 let simpleSortKey = "avgMark";     // Current column being sorted

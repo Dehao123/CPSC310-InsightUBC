@@ -1,6 +1,7 @@
 // src/rest/Server.ts
 import express, { Express, Request, Response } from "express";
 import cors from "cors";
+import path from "path";
 import { Server as HttpServer } from "http";
 import InsightFacade from "../controller/InsightFacade";
 import { InsightDatasetKind, InsightError, NotFoundError } from "../controller/IInsightFacade";
@@ -40,7 +41,6 @@ export default class Server {
 	public stop(): Promise<void> {
 		return new Promise((resolve, reject) => {
 			if (!this.server) {
-
 				resolve();
 				return;
 			}
@@ -56,11 +56,9 @@ export default class Server {
 		});
 	}
 
-
 	public getExpress(): Express {
 		return this.express;
 	}
-
 
 	private registerRoutes(): void {
 		// PUT /api/v1/datasets/:id
@@ -153,6 +151,12 @@ export default class Server {
 						});
 					}
 				});
+		});
+
+		const frontendDir = path.join(__dirname, "../../frontend/public");
+		this.express.use(express.static(frontendDir));
+		this.express.get("/", (_req: Request, res: Response) => {
+			res.sendFile(path.join(frontendDir, "index.html"));
 		});
 	}
 }
